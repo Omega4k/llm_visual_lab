@@ -1489,6 +1489,13 @@ function renderProgress() {
     a.textContent = a.textContent.replace(/ ✓$/, "") +
       (completedLessons.has(id) ? " ✓" : "");
   });
+  const quizCount = document.getElementById("quizOpenCount");
+  if (quizCount) quizCount.textContent = completedLessons.size + "/" + LESSON_ORDER.length;
+  document.querySelectorAll(".quiz-group-status").forEach((el) => {
+    const done = completedLessons.has(el.dataset.lesson);
+    el.classList.toggle("done", done);
+    el.textContent = done ? "Completed ✓" : "Not completed";
+  });
 }
 function markComplete(id, silent) {
   if (completedLessons.has(id)) return;
@@ -1542,15 +1549,37 @@ const QUIZZES = {
   ],
 };
 
+/* Quiz drawer: quizzes live apart from the lessons, in a slide-in panel. */
+const quizDrawer = document.getElementById("quizDrawer");
+const quizScrim = document.getElementById("quizScrim");
+function setQuizDrawer(open) {
+  quizDrawer.classList.toggle("open", open);
+  quizDrawer.setAttribute("aria-hidden", String(!open));
+  quizScrim.hidden = !open;
+  document.body.style.overflow = open ? "hidden" : "";
+}
+document.getElementById("quizOpenBtn").addEventListener("click", () => setQuizDrawer(true));
+document.getElementById("quizCloseBtn").addEventListener("click", () => setQuizDrawer(false));
+quizScrim.addEventListener("click", () => setQuizDrawer(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && quizDrawer.classList.contains("open")) setQuizDrawer(false);
+});
+
 LESSON_ORDER.forEach((id, idx) => {
   const section = document.getElementById(id);
   if (!section) return;
-  // Quiz block
+  // Quiz block — built into the drawer, grouped per lesson, not in the lesson.
   const quiz = QUIZZES[id];
-  if (quiz) {
+  const quizList = document.getElementById("quizList");
+  if (quiz && quizList) {
+    const group = document.createElement("div");
+    group.className = "quiz-group";
+    group.innerHTML = "<div class='quiz-group-head'><h3>" + (idx + 1) + " · " +
+      LESSON_TITLES[id] + "</h3><span class='quiz-group-status' data-lesson='" +
+      id + "'>Not completed</span></div>";
     const box = document.createElement("div");
     box.className = "quiz";
-    box.innerHTML = "<h3>Checkpoint — check your understanding</h3>" +
+    box.innerHTML =
       "<p class='quiz-status'>Answer both questions to complete this lesson automatically.</p>";
     let answered = new Set();
     quiz.forEach((item, qi) => {
@@ -1590,7 +1619,8 @@ LESSON_ORDER.forEach((id, idx) => {
       box.appendChild(opts);
       box.appendChild(feedback);
     });
-    section.appendChild(box);
+    group.appendChild(box);
+    quizList.appendChild(group);
   }
   // Footer: complete toggle + next lesson
   const footer = document.createElement("div");

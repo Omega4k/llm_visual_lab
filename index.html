@@ -32,6 +32,7 @@
     <button type="button" data-set-level="medium" class="level-btn">Medium</button>
     <button type="button" data-set-level="expert" class="level-btn">Expert</button>
     <button id="soundBtn" type="button" aria-pressed="false">Sound: off</button>
+    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/10</span></button>
     <label class="theme-label">Theme
       <select id="themeSelect">
         <option value="amber">Amber</option>
@@ -336,6 +337,16 @@
   <p>LLM Visual Lab — a local learning tool. Lessons 1–6 are schematic teaching models,
   lesson 7 is a real (tiny) trained model, and lesson 10 uses the real local Llama.</p>
 </footer>
+
+<div class="quiz-scrim" id="quizScrim" hidden></div>
+<aside class="quiz-drawer" id="quizDrawer" aria-hidden="true" aria-label="Checkpoint quizzes">
+  <div class="quiz-drawer-head">
+    <h2>Checkpoint quizzes</h2>
+    <button id="quizCloseBtn" type="button">Close ✕</button>
+  </div>
+  <p class="hint">Kept apart from the lessons so the learning stays clean. Answer both questions in a lesson to complete it automatically — or use “Mark lesson complete” at the end of a lesson instead.</p>
+  <div id="quizList"></div>
+</aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
 <script type="module" src="app.js"></script>

@@ -52,7 +52,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 ## Features
 
 - Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound
-- Progress tracking with a checkpoint quiz (2 questions) per lesson, saved locally
+- Progress tracking, saved locally; checkpoint quizzes (2 questions per lesson) live in a slide-in Quiz drawer (button in the top bar), separate from the lessons
 - "Mark complete" plus a Next-lesson button on every lesson
 - Lesson 1 compares the teaching splitter with a real BPE tokenizer (GPT-2 family,
   loaded on demand; Llama's algorithm is the same family with a larger vocabulary)

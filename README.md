@@ -58,6 +58,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
   loaded on demand; Llama's algorithm is the same family with a larger vocabulary)
 - Lesson 7 can be retrained on your own sentences (vocabulary rebuilds from your words)
 - Lesson 3 has a 3D loss landscape: a ball descends by real gradient descent with a learning-rate slider (crawl, settle, or overshoot the valley)
+- Lesson 10 uses real Ollama debug data: per-token logprobs with clickable tokens, 3D candidate towers, a model-facts card (`/api/show`), server-measured tok/s, and the full context token-ID strip (template tokens included)
 
 ## Roadmap
 

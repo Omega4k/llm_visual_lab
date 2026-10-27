@@ -247,6 +247,129 @@ let currentAbort = null;
 
 tempRange.addEventListener("input", () => { tempVal.textContent = tempRange.value; });
 
+/* Real per-token candidates (Ollama logprobs), model facts, debug data */
+let liveTokens = [];
+let selectedLive = -1;
+let candidateUpdate3D = null;
+const fmtPct = (p) => p >= 0.1 ? (p * 100).toFixed(1) + "%" : p >= 0.001 ? (p * 100).toFixed(2) + "%" : (p * 100).toFixed(3) + "%";
+
+function selectLiveToken(idx) {
+  if (idx < 0 || idx >= liveTokens.length) return;
+  selectedLive = idx;
+  document.querySelectorAll(".live-token").forEach((el, i) =>
+    el.classList.toggle("selected", i === idx));
+  const entry = liveTokens[idx];
+  const bars = document.getElementById("candidateBars");
+  const info = document.getElementById("candidateInfo");
+  bars.innerHTML = "";
+  if (!entry.top.length) {
+    bars.innerHTML = "<p class='hint'>No logprobs returned for this token (older Ollama?).</p>";
+    info.textContent = "";
+    if (candidateUpdate3D) candidateUpdate3D([]);
+    return;
+  }
+  // Same text can appear as several token ids — keep only its best entry.
+  const byToken = new Map();
+  for (const t of entry.top) {
+    const p = Math.exp(t.logprob);
+    if (!byToken.has(t.token) || byToken.get(t.token).p < p) {
+      byToken.set(t.token, { token: t.token, p });
+    }
+  }
+  const cands = [...byToken.values()].sort((a, b) => b.p - a.p);
+  let shown = 0;
+  for (const c of cands) {
+    shown += c.p;
+    const row = document.createElement("div");
+    row.className = "cand-bar" + (c.token === entry.token ? " chosen" : "");
+    row.innerHTML = "<span class='cand-name'></span>" +
+      "<span class='bar-track'><span class='bar-fill'></span></span><span></span>";
+    row.children[0].textContent = c.token.replace(/ /g, "␣").replace(/\n/g, "⏎");
+    row.children[1].children[0].style.width = Math.max(0.4, c.p * 100) + "%";
+    row.children[2].textContent = fmtPct(c.p);
+    bars.appendChild(row);
+  }
+  const rest = Math.max(0, 1 - shown);
+  if (rest > 0.0005) {
+    const row = document.createElement("div");
+    row.className = "cand-bar others";
+    row.innerHTML = "<span class='cand-name'>all other tokens</span>" +
+      "<span class='bar-track'><span class='bar-fill'></span></span><span></span>";
+    row.children[1].children[0].style.width = Math.max(0.4, rest * 100) + "%";
+    row.children[2].textContent = fmtPct(rest);
+    bars.appendChild(row);
+  }
+  const chosenP = Math.exp(entry.chosenLogprob ?? entry.top[0].logprob);
+  const rivals = cands.filter((c) => c.token.trim() !== entry.token.trim());
+  const bestRival = rivals.length ? rivals.reduce((a, b) => (b.p > a.p ? b : a)) : null;
+  info.textContent = "Token " + (idx + 1) + " of " + liveTokens.length + ": picked “" +
+    entry.token.trim() + "” at " + fmtPct(chosenP) +
+    (bestRival && bestRival.p >= 0.001
+      ? " — closest rival “" + bestRival.token.trim() + "” at " + fmtPct(bestRival.p)
+      : " — no rival above 0.1%") +
+    (chosenP > 0.9 ? ". Near-certain: barely a choice." :
+     chosenP > 0.5 ? ". Fairly confident, but a real alternative existed." :
+     ". A genuine coin-flip zone — another run could easily pick differently.");
+  if (candidateUpdate3D) candidateUpdate3D(cands, entry.token);
+}
+
+function renderDebug(final) {
+  const stats = document.getElementById("debugStats");
+  const idsBox = document.getElementById("contextIds");
+  const ms = (ns) => (ns / 1e6).toFixed(0) + " ms";
+  const tps = final.eval_count && final.eval_duration
+    ? (final.eval_count / (final.eval_duration / 1e9)).toFixed(1) : "?";
+  stats.textContent =
+    "Generated " + (final.eval_count ?? "?") + " tokens at " + tps + " tok/s (" +
+    ms(final.eval_duration || 0) + ") · prompt: " + (final.prompt_eval_count ?? "?") +
+    " tokens read in " + ms(final.prompt_eval_duration || 0) + " · model load " +
+    ms(final.load_duration || 0) + " · total " + ms(final.total_duration || 0) +
+    " · stopped because: " + (final.done_reason || "?");
+  idsBox.innerHTML = "";
+  const ids = final.context || [];
+  ids.slice(0, 240).forEach((id) => {
+    const s = document.createElement("span");
+    s.className = "ctx-id" + (id >= 128000 ? " special" : "");
+    s.textContent = id;
+    s.title = id >= 128000 ? "special / template token" : "token id";
+    idsBox.appendChild(s);
+  });
+  if (ids.length > 240) {
+    const s = document.createElement("span");
+    s.className = "ctx-id";
+    s.textContent = "+" + (ids.length - 240) + " more";
+    idsBox.appendChild(s);
+  }
+}
+
+async function fetchModelCard() {
+  const card = document.getElementById("modelCard");
+  try {
+    const res = await fetch(OLLAMA + "/api/show", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: MODEL }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const d = await res.json();
+    const mi = d.model_info || {};
+    const det = d.details || {};
+    const facts = [
+      ["Model", MODEL],
+      ["Parameters", det.parameter_size || Math.round((mi["general.parameter_count"] || 0) / 1e8) / 10 + "B"],
+      ["Layers", mi["llama.block_count"]],
+      ["Embedding size", mi["llama.embedding_length"]],
+      ["Attention heads", mi["llama.attention.head_count"]],
+      ["Context window", (mi["llama.context_length"] || 0).toLocaleString() + " tokens"],
+      ["Quantization", det.quantization_level || "?"],
+    ];
+    card.innerHTML = facts.map(([k, v]) =>
+      "<span>" + k + ": <b>" + v + "</b></span>").join("");
+  } catch (err) {
+    card.textContent = "Model facts unavailable (model offline).";
+  }
+}
+fetchModelCard();
+
 async function generate() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { showError("Write a prompt first."); return; }
@@ -256,13 +379,20 @@ async function generate() {
     showError("The local model is offline. Follow the setup steps below, then Re-check.");
     return;
   }
-  output.textContent = "";
+  output.innerHTML = "";
+  liveTokens = [];
+  selectedLive = -1;
   document.getElementById("liveStats").textContent = "";
+  document.getElementById("candidateBars").innerHTML =
+    "<p class='hint'>Listening… towers will dance as tokens arrive.</p>";
+  document.getElementById("candidateInfo").textContent = "";
+  document.getElementById("debugStats").textContent = "Generating…";
   generateBtn.disabled = true;
   stopBtn.disabled = false;
   currentAbort = new AbortController();
   const genStarted = performance.now();
   let chunkCount = 0;
+  let finalData = null;
   try {
     const res = await fetch(OLLAMA + "/api/generate", {
       method: "POST",
@@ -272,6 +402,8 @@ async function generate() {
         model: MODEL,
         prompt: prompt,
         stream: true,
+        logprobs: true,
+        top_logprobs: 5,
         options: { temperature: parseFloat(tempRange.value), num_predict: 80 },
       }),
     });
@@ -289,18 +421,31 @@ async function generate() {
         if (!line.trim()) continue;
         const json = JSON.parse(line);
         if (json.response) {
-          output.textContent += json.response;
+          const lp = (json.logprobs || [])[0];
+          const idx = liveTokens.push({
+            token: json.response,
+            top: lp ? lp.top_logprobs : [],
+            chosenLogprob: lp ? lp.logprob : null,
+          }) - 1;
+          const span = document.createElement("span");
+          span.className = "live-token";
+          span.textContent = json.response;
+          span.title = "Click to see what the model considered here";
+          span.addEventListener("click", () => selectLiveToken(idx));
+          output.appendChild(span);
           chunkCount++;
           spawnParticles(json.response.length);
           sndToken(chunkCount);
+          if (lp) selectLiveToken(idx);
         }
-        if (json.done) break;
+        if (json.done) { finalData = json; break; }
       }
     }
     if (!output.textContent) output.textContent = "(the model returned nothing — try a different prompt)";
+    if (finalData) renderDebug(finalData);
   } catch (err) {
     if (err.name === "AbortError") {
-      output.textContent += "\n[stopped]";
+      output.appendChild(document.createTextNode("\n[stopped]"));
     } else {
       showError("Generation failed: " + err.message);
       checkModel();
@@ -311,15 +456,191 @@ async function generate() {
     currentAbort = null;
     const secs = ((performance.now() - genStarted) / 1000).toFixed(1);
     if (chunkCount > 0) {
-      document.getElementById("liveStats").textContent =
-        chunkCount + " token chunks · " + secs + "s · " +
-        (chunkCount / Math.max(0.1, parseFloat(secs))).toFixed(1) + " chunks/sec";
+      document.getElementById("liveStats").textContent = finalData && finalData.eval_duration
+        ? chunkCount + " tokens · " + secs + "s wall-clock · " +
+          (finalData.eval_count / (finalData.eval_duration / 1e9)).toFixed(1) +
+          " tok/s generation speed (server-measured)"
+        : chunkCount + " token chunks · " + secs + "s · " +
+          (chunkCount / Math.max(0.1, parseFloat(secs))).toFixed(1) + " chunks/sec";
       sndDone();
     }
   }
 }
 generateBtn.addEventListener("click", generate);
 stopBtn.addEventListener("click", () => { if (currentAbort) currentAbort.abort(); });
+
+/* ---------- Lesson 10: candidate towers in 3D (real logprobs) ---------- */
+async function initCandidate3D() {
+  const box = document.getElementById("candidate3D");
+  let THREE;
+  try { THREE = await import("three"); } catch (err) { return; }
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(theme3D.bg);
+  const camera = new THREE.PerspectiveCamera(50, box.clientWidth / box.clientHeight, 0.1, 100);
+  camera.position.set(0, 3.1, 6.4);
+  camera.lookAt(0, 0.9, 0);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(box.clientWidth, box.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  box.appendChild(renderer.domElement);
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(360 * 3);
+  for (let i = 0; i < 360; i++) {
+    const r = 9 + Math.random() * 9;
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(2 * Math.random() - 1);
+    starPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    starPos[i * 3 + 1] = Math.abs(r * Math.sin(ph) * Math.sin(th)) * 0.7;
+    starPos[i * 3 + 2] = r * Math.cos(ph) - 3;
+  }
+  starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+  const starMat = new THREE.PointsMaterial({
+    color: theme3D.star, size: 0.05, transparent: true, opacity: 0.8 });
+  scene.add(new THREE.Points(starGeo, starMat));
+
+  const platform = new THREE.Mesh(
+    new THREE.BoxGeometry(7.4, 0.16, 2.4),
+    new THREE.MeshBasicMaterial({ color: 0x232c38 }));
+  platform.position.y = -0.08;
+  group.add(platform);
+  const grid = new THREE.GridHelper(7.4, 10, 0x3d4a5a, 0x2a333f);
+  grid.scale.z = 2.4 / 7.4;
+  grid.position.y = 0.01;
+  group.add(grid);
+
+  function makeLabel() {
+    const c = document.createElement("canvas");
+    c.width = 320; c.height = 140;
+    const tex = new THREE.CanvasTexture(c);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthTest: false }));
+    sprite.scale.set(1.25, 0.55, 1);
+    sprite.renderOrder = 20;
+    sprite.userData = { canvas: c, tex };
+    return sprite;
+  }
+  function drawLabel(sprite, token, pctText, chosen) {
+    const { canvas, tex } = sprite.userData;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 320, 140);
+    ctx.fillStyle = "rgba(10, 14, 19, 0.88)";
+    ctx.strokeStyle = chosen ? "rgba(255, 210, 140, 0.95)" : "rgba(140, 165, 190, 0.55)";
+    ctx.lineWidth = chosen ? 5 : 3;
+    ctx.beginPath();
+    ctx.roundRect(14, 8, 292, 124, 18);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2ede4";
+    ctx.font = "700 44px Segoe UI, sans-serif";
+    const label = token.replace(/\s/g, "␣").slice(0, 12) || "∅";
+    ctx.fillText(label, 160, 58);
+    ctx.fillStyle = chosen ? "#ffd28c" : "#a9c6de";
+    ctx.font = "700 38px Consolas, monospace";
+    ctx.fillText(pctText, 160, 108);
+    tex.needsUpdate = true;
+  }
+
+  const towers = [];
+  for (let i = 0; i < 5; i++) {
+    const geo = new THREE.BoxGeometry(0.92, 1, 0.92);
+    geo.translate(0, 0.5, 0);
+    const mat = new THREE.MeshBasicMaterial({
+      color: theme3D.input, transparent: true, opacity: 0.92 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(-2.8 + i * 1.4, 0, 0);
+    mesh.scale.y = 0.12;
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(0.94, 1.02, 0.94)),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
+    edges.geometry.translate(0, 0.5, 0);
+    mesh.add(edges);
+    const label = makeLabel();
+    label.position.set(mesh.position.x, 0.7, 0);
+    group.add(mesh);
+    group.add(label);
+    towers.push({ mesh, label, target: 0.12, chosen: false });
+  }
+
+  candidateUpdate3D = (cands, chosenToken) => {
+    towers.forEach((t, i) => {
+      const c = cands[i];
+      if (!c) { t.mesh.visible = false; t.label.visible = false; return; }
+      t.mesh.visible = true;
+      t.label.visible = true;
+      t.chosen = c.token === chosenToken;
+      t.target = 0.12 + Math.sqrt(Math.max(0, c.p)) * 2.7;
+      t.mesh.material.color.setHex(t.chosen ? theme3D.accent : theme3D.input);
+      drawLabel(t.label, c.token, fmtPct(c.p), t.chosen);
+    });
+  };
+  candidateUpdate3D([], null);
+  themeRecolorers.push((p) => {
+    scene.background = new THREE.Color(p.bg);
+    starMat.color.setHex(p.star);
+    for (const t of towers) {
+      t.mesh.material.color.setHex(t.chosen ? p.accent : p.input);
+    }
+  });
+
+  let composer = null;
+  try {
+    const { EffectComposer } = await import("three/addons/postprocessing/EffectComposer.js");
+    const { RenderPass } = await import("three/addons/postprocessing/RenderPass.js");
+    const { UnrealBloomPass } = await import("three/addons/postprocessing/UnrealBloomPass.js");
+    const { OutputPass } = await import("three/addons/postprocessing/OutputPass.js");
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(
+      new THREE.Vector2(box.clientWidth, box.clientHeight), 0.55, 0.7, 0.5));
+    composer.addPass(new OutputPass());
+  } catch (err) { composer = null; }
+
+  let dragging = false, px = 0, py = 0, ry = -0.25, rx = 0.32;
+  const el = renderer.domElement;
+  el.style.touchAction = "none";
+  el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    ry += (e.clientX - px) * 0.008;
+    rx = Math.max(-0.1, Math.min(1.1, rx + (e.clientY - py) * 0.005));
+    px = e.clientX; py = e.clientY;
+  });
+  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    camera.position.z = Math.max(4, Math.min(11, camera.position.z + e.deltaY * 0.01));
+  }, { passive: false });
+
+  const reduceM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (!dragging && !reduceM) ry += 0.0016;
+    group.rotation.y = Math.sin(ry) * 0.55;
+    group.rotation.x = 0;
+    camera.position.y = 1.2 + rx * 3.2;
+    camera.lookAt(0, 0.9, 0);
+    const t = now / 1000;
+    for (const tw of towers) {
+      if (!tw.mesh.visible) continue;
+      tw.mesh.scale.y += (tw.target - tw.mesh.scale.y) * 0.09;
+      const bob = tw.chosen && !reduceM ? Math.sin(t * 3.2) * 0.05 : 0;
+      tw.label.position.y = tw.mesh.scale.y + 0.55 + bob;
+      if (tw.chosen) tw.mesh.material.opacity = 0.95 + Math.sin(t * 3.2) * 0.05;
+    }
+    if (composer) composer.render(); else renderer.render(scene, camera);
+  }
+  requestAnimationFrame(tick);
+  window.addEventListener("resize", () => {
+    camera.aspect = box.clientWidth / box.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(box.clientWidth, box.clientHeight);
+    if (composer) composer.setSize(box.clientWidth, box.clientHeight);
+  });
+}
+initCandidate3D();
 
 /* ---------- Lesson 3: attention (schematic teaching data) ---------- */
 const ATTN_WORDS = ["The", "cat", "sat", "on", "the", "mat", "because", "it", "was", "tired"];

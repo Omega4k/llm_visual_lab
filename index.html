@@ -309,6 +309,17 @@
     <p class="gauge-label">Token stream — one burst per generated token chunk</p>
     <div class="output" id="output" aria-live="polite"></div>
     <p class="stats" id="liveStats"></p>
+    <div class="model-card" id="modelCard">Loading model facts…</div>
+    <h3>What the model considered — real probabilities</h3>
+    <p><span class="lvl lvl-b">Every glowing piece of the answer above is a token the model picked. Click one: the towers show the other words it was choosing between, and how sure it was. Tall tower = “almost certainly this one”. Several similar towers = “a real choice”. It replays live while the model writes.</span><span class="lvl lvl-m">Each generated token is clickable. The chart shows the real top-5 candidates with their probabilities (from Ollama logprobs) for that position — the same softmax competition from lesson 5, now with real numbers from the real model. Tower height uses a square-root scale so small probabilities stay visible.</span><span class="lvl lvl-e">Streaming <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>: per token you get the sampled token's logprob and the top-5 alternatives. Probabilities below are <span class="mono">exp(logprob)</span> at your temperature; “all others” is the remaining mass over the ~128k vocabulary. Tower height ∝ √p (noted, not hidden) so 0.1% candidates remain visible.</span></p>
+    <div id="candidate3D" class="canvas-box"></div>
+    <p class="gauge-label">Candidate towers — drag to orbit · scroll to zoom · click a token in the answer to inspect it</p>
+    <div class="cand-bars" id="candidateBars"><p class="hint">Generate something, then click a token in the answer.</p></div>
+    <p class="stats" id="candidateInfo"></p>
+    <h3>Inside the request — debug data from the model server</h3>
+    <p><span class="lvl lvl-b">Below is data your computer's model server reports about the last run: how fast it thought, and the exact numbered token IDs it processed — including hidden instruction tokens wrapped around your prompt that you never typed.</span><span class="lvl lvl-m">Timings and counts are Ollama's own measurements (<span class="mono">eval</span> = generating, <span class="mono">prompt_eval</span> = reading your prompt). The ID strip is the full <span class="mono">context</span> array: your prompt plus the chat-template control tokens (IDs ≥ 128000) plus the answer so far.</span><span class="lvl lvl-e">Raw fields: <span class="mono">total/load/prompt_eval/eval durations</span> in nanoseconds, converted here. <span class="mono">context</span> is the token-id sequence of the whole forward context — note the template tokens (<span class="mono">128006/128007/128009</span>…) bookending your text; your prompt alone did not look like that inside the model.</span></p>
+    <p class="stats" id="debugStats">No generation yet this session.</p>
+    <div class="ctx-ids" id="contextIds"></div>
     <div class="offline-help" id="offlineHelp" hidden>
       <h3>The local model is not reachable</h3>
       <ol>

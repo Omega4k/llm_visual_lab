@@ -1005,15 +1005,6 @@ async function initToy3D() {
     new THREE.LineBasicMaterial({ color: theme3D.accent, transparent: true, opacity: 0.95 }));
   group.add(highlight);
 
-  // Corner core: a single rotating cube (clean edges only), pinned to the
-  // camera so it always sits in the top-left corner, whatever the view does.
-  const reactor = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.23, 0.23, 0.23)),
-    new THREE.LineBasicMaterial({ color: theme3D.accent, transparent: true, opacity: 0.9 }));
-  reactor.position.set(-1.78, 0.78, -2);
-  camera.add(reactor);
-  scene.add(camera);
-
   // Starfield backdrop + bloom (falls back to plain rendering if addons fail).
   const starGeo = new THREE.BufferGeometry();
   const starPos = new Float32Array(420 * 3);
@@ -1058,7 +1049,6 @@ async function initToy3D() {
     scene.background = new THREE.Color(p.bg);
     toyStarMat.color.setHex(p.star);
     highlight.material.color.setHex(p.accent);
-    reactor.material.color.setHex(p.accent);
     for (const dot of pulses) dot.material.color.setHex(p.accent);
     toyRender();
   });
@@ -1127,14 +1117,6 @@ async function initToy3D() {
     group.rotation.x = rx;
     const t = now / 1000;
     const active = toyTimer ? 1 : 0;
-    const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 2;
-    reactor.position.set(-(halfH * camera.aspect - 0.38), halfH - 0.38, -2);
-    // Same fixed-speed, frame-rate-independent rotation as lesson 2
-    // (0.8 / 0.5 rad/s), faster while training.
-    reactor.rotation.y += delta * (0.8 + active * 1.7);
-    reactor.rotation.x += delta * (0.5 + active * 0.6);
-    const pulse = 1 + Math.sin(t * (2 + active * 5)) * (0.05 + active * 0.10);
-    reactor.scale.setScalar(pulse);
     // Send energy pulses along the strongest route, faster while training.
     pulses.forEach((dot, i) => {
       if (!pulseRoutes.length) { dot.visible = false; return; }
@@ -1258,11 +1240,18 @@ LESSON_ORDER.forEach((id, idx) => {
       opts.className = "quiz-opts";
       const feedback = document.createElement("p");
       feedback.className = "quiz-feedback";
-      item.opts.forEach((optText, oi) => {
+      // Shuffle option order so the correct answer is not always in the
+      // same position; `oi` still refers to the original option index.
+      const order = item.opts.map((_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      order.forEach((oi) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "quiz-opt";
-        btn.textContent = optText;
+        btn.textContent = item.opts[oi];
         btn.addEventListener("click", () => {
           const correct = oi === item.a;
           btn.classList.add(correct ? "correct" : "wrong");

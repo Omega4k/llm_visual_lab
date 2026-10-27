@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Visual Lab — How language models work</title>
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body class="level-beginner">
+<header class="topbar">
+  <div>
+    <h1>LLM Visual Lab</h1>
+    <p class="tagline">See how a language model reads, thinks in vectors, and predicts the next token.</p>
+  </div>
+  <div class="model-status" id="modelStatus" role="status">
+    <span class="dot dot-unknown" id="statusDot"></span>
+    <span id="statusText">Checking local model…</span>
+    <button id="recheckBtn" type="button">Re-check</button>
+  </div>
+</header>
+
+<div class="sticky-bar">
+  <div class="level-switch" role="group" aria-label="Knowledge level">
+    <span class="level-label">Level</span>
+    <button type="button" data-set-level="beginner" class="level-btn active">Beginner</button>
+    <button type="button" data-set-level="medium" class="level-btn">Medium</button>
+    <button type="button" data-set-level="expert" class="level-btn">Expert</button>
+    <button id="soundBtn" type="button" aria-pressed="false">Sound: off</button>
+    <label class="theme-label">Theme
+      <select id="themeSelect">
+        <option value="amber">Amber</option>
+        <option value="ice">Ice</option>
+        <option value="emerald">Emerald</option>
+        <option value="rose">Rose</option>
+      </select>
+    </label>
+    <span class="sticky-status"><span id="progressLabel">Progress 0/10</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span><span class="dot dot-unknown" id="stickyDot"></span><span id="stickyStatus">Model…</span></span>
+  </div>
+  <nav class="lesson-nav" aria-label="Lessons">
+    <a href="#tokens">1 · Tokens</a>
+    <a href="#embeddings">2 · Embeddings</a>
+    <a href="#training">3 · Training</a>
+    <a href="#attention">4 · Attention</a>
+    <a href="#probabilities">5 · Next token</a>
+    <a href="#journey">6 · Inside the model</a>
+    <a href="#toymodel">7 · Toy model 3D</a>
+    <a href="#context">8 · Context</a>
+    <a href="#limits">9 · Limits</a>
+    <a href="#playground">10 · Live model</a>
+  </nav>
+</div>
+
+<main>
+  <section id="tokens" class="panel">
+    <h2>1 · Tokens — how the model reads</h2>
+    <p><span class="lvl lvl-b">A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</span><span class="lvl lvl-m">A model never sees words. It sees <strong>tokens</strong> from a fixed vocabulary, produced by a tokenizer. Common words are single tokens; rare or long words split into subword pieces, and spaces and punctuation count too.</span><span class="lvl lvl-e">Input text is segmented by a learned subword tokenizer (BPE-style merges over bytes) into IDs from a fixed vocabulary. Frequent strings become single tokens; rare strings fragment, which is why token count — not character count — drives cost, context usage, and letter-level blindness.</span></p>
+    <label for="tokenInput">Your text</label>
+    <textarea id="tokenInput" rows="3">The quick brown fox jumps over the lazy dog.</textarea>
+    <div class="token-row" id="tokenRow" aria-live="polite"></div>
+    <p class="stats"><span id="tokenCount">0</span> tokens · <span id="charCount">0</span> characters
+    · ≈ <span id="ratio">0</span> characters per token</p>
+    <p class="note">This splitter is a teaching approximation. The real tokenizer is learned
+    from data, but the intuition — common chunks stay whole, rare ones split — is the same.</p>
+    <h3>Compare with a real tokenizer</h3>
+    <p>This loads a real BPE tokenizer (GPT-2 family) in your browser and tokenizes the text
+    above with it. Llama uses the same kind of algorithm with a different, larger vocabulary,
+    so the exact splits differ — your local Ollama build exposes no tokenize endpoint to ask
+    the real one (checked: it returns 404).</p>
+    <button id="realTokBtn" type="button">Tokenize with the real tokenizer</button>
+    <div class="token-row" id="realTokenRow"></div>
+    <p class="stats" id="realTokStats"></p>
+  </section>
+
+  <section id="embeddings" class="panel">
+    <h2>2 · Embeddings — words as places</h2>
+    <p><span class="lvl lvl-b">Inside the model, every word becomes a list of numbers — a point in space. Words that mean similar things sit close together. Drag to look around the cloud, scroll to zoom, and find the animal, vehicle, and food groups.</span><span class="lvl lvl-m">Every token is mapped to an <strong>embedding</strong>: a vector of numbers learned in training. Similar usage produces similar vectors, so meaning shows up as distance. Drag to orbit, scroll to zoom.</span><span class="lvl lvl-e">Each token ID indexes a row of the embedding matrix E ∈ ℝ<sup>V×d</sup> (here d is in the thousands; this plot projects a toy version to 3D). Cosine proximity encodes distributional similarity, and directions can carry relational structure (king − man + woman ≈ queen).</span></p>
+    <div id="embedCanvas" class="canvas-box"></div>
+    <p class="note" id="embedFallback" hidden>The 3D view needs an internet connection for its
+    library on first load. The idea: each labelled point is a word, and distance means similarity.</p>
+    <p><strong>Try this:</strong> find the two clusters. Why do you think <em>king</em> and <em>queen</em>
+    sit apart from <em>car</em> and <em>bus</em>, even though all four are nouns?</p>
+    <h3>Why are <em>king</em> and <em>queen</em> close together?</h3>
+    <p>Nobody told the model they are related. During <strong>training</strong> (next lesson) it read
+    billions of sentences and kept adjusting these positions so it could guess masked or next words
+    better. <em>King</em> and <em>queen</em> show up in almost interchangeable sentences —
+    “the ___ wore a crown”, “the ___ ruled the kingdom”, “long live the ___” — so the positions that
+    best predict those shared contexts end up nearly identical. <em>Car</em> and <em>bus</em> share a
+    different set of contexts (“parked the ___”, “drove the ___”), so they form their own cluster far away.
+    Closeness in this space literally means <em>“used in similar sentences.”</em> That is also why the
+    geometry carries meaning: the direction from <em>man</em> to <em>king</em> is roughly the same
+    direction as from <em>woman</em> to <em>queen</em> — royalty, learned from usage alone.</p>
+  </section>
+
+  <section id="training" class="panel">
+    <h2>3 · Training — how it learned all this</h2>
+    <p><span class="lvl lvl-b">Before the model could answer anything, it practised — a lot. It read text, guessed the next word, checked, and fixed its mistakes by a tiny amount. After billions of tries, words used in similar ways ended up as neighbours. Press <strong>Train</strong> and watch eight words organise themselves as the error score falls.</span><span class="lvl lvl-m">Training is the guess–check–nudge loop: predict the next token, measure the error (<strong>loss</strong>), and adjust every weight slightly downhill via <strong>gradient descent</strong>. Embeddings organise because words in similar contexts receive similar nudges. Press <strong>Train</strong> to run the toy version.</span><span class="lvl lvl-e">Pre-training minimises next-token cross-entropy over trillions of tokens by stochastic gradient descent with backpropagation through every layer. The toy below uses the same update, <span class="mono">w ← w − η·∂L/∂w</span> — watch the loss fall as the embedding geometry self-organises from random initialisation.</span></p>
+    <canvas id="trainCanvas" class="train-canvas" width="720" height="360"></canvas>
+    <div class="controls">
+      <button id="trainBtn" type="button">Train</button>
+      <button id="trainResetBtn" type="button">Reset</button>
+      <label>Training steps <span id="trainStepVal">0</span> / 100
+        <input type="range" id="trainSteps" min="0" max="100" step="1" value="0">
+      </label>
+      <span class="loss">Loss: <strong id="lossVal">100%</strong></span>
+    </div>
+    <div class="gauge" aria-hidden="true"><div class="gauge-fill" id="lossGaugeFill"></div></div>
+    <p class="gauge-label">Training loss — lower is better</p>
+    <div class="math-box depth-m">
+      The loop, as maths — <strong>gradient descent</strong>:<br>
+      1 · Guess: the model outputs probabilities <span class="mono">p</span> for the next token.<br>
+      2 · Measure: <span class="mono">loss = −log p(correct token)</span> — huge when it was confidently wrong, near zero when right.<br>
+      3 · Blame: each weight gets a gradient <span class="mono">∂loss/∂w</span> — its personal share of the blame (the chain rule carries the error backwards, layer by layer: “backpropagation”).<br>
+      4 · Nudge: <span class="mono">w ← w − η · ∂loss/∂w</span>, with learning rate <span class="mono">η</span> small (the toy model in lesson 7 uses η = 0.4) so it improves instead of jumping past the answer.<br>
+      Repeat billions of times and the loss landscape is slowly descended — like walking downhill in fog, always stepping along the steepest downward slope you can feel underfoot.
+    </div>
+    <p class="note">Toy model, real principle. The real thing trains on trillions of tokens for weeks
+    on thousands of processors, and the “words” are tokens in a space with thousands of dimensions —
+    but the loop is the same: guess, measure the error, nudge, repeat. Crucially, training is finished
+    before you ever type a prompt; chatting with the model (<strong>inference</strong>) changes nothing
+    inside it. It is not learning from you.</p>
+    <h3>The loss landscape — gradient descent in 3D</h3>
+    <p><span class="lvl lvl-b">Imagine every possible setting of the model as a place in a hilly landscape, where the height is how wrong it is. Training is walking downhill to the lowest point. The ball below can only feel the slope under its feet — that slope is the <strong>gradient</strong> — and each step goes downhill by an amount set by the <strong>learning rate</strong>. Too small: it crawls. Too big: it leaps across the valley and climbs the other side.</span><span class="lvl lvl-m">Every weight setting is a point on a <strong>loss landscape</strong>; height is the loss. Gradient descent steps against the gradient, <span class="mono">w ← w − η·∇L</span>. Drag to orbit, scroll to zoom, then step the ball downhill. Try η = 0.1 (crawls), 0.45 (smooth), then 1.1 (overshoots and oscillates).</span><span class="lvl lvl-e">The surface is <span class="mono">L(x,y) = 0.6x² + 0.25y² + 0.35·sin(x)·cos(y)</span> — a non-convex bowl standing in for a loss surface over two weights (real models: billions). The ball follows exact gradient descent on this function; watch ∇L shrink near the minimum, then reset with η = 1.2 and see it leap across the minimum and have to come back — with a worse-conditioned surface, that is where divergence begins.</span></p>
+    <div id="lossCanvas" class="canvas-box"></div>
+    <p class="gauge-label">Drag to orbit · scroll to zoom</p>
+    <div class="controls">
+      <label>Learning rate η <span id="lrVal">0.45</span>
+        <input type="range" id="lrRange" min="0.05" max="1.2" step="0.05" value="0.45">
+      </label>
+      <button id="lossStepBtn" type="button">Take one step</button>
+      <button id="lossPlayBtn" type="button">Auto-descend</button>
+      <button id="lossResetBtn" type="button">Reset ball</button>
+    </div>
+    <div class="math-box" id="lossMath">Press “Take one step” to see the gradient maths with real numbers.</div>
+  </section>
+
+  <section id="attention" class="panel">
+    <h2>4 · Attention — deciding what matters</h2>
+    <p><span class="lvl lvl-b">Words can be ambiguous — in “The cat sat on the mat because it was tired,” what does <em>it</em> mean? <strong>Attention</strong> lets each word look back at the words before it and decide which ones matter. Click a word to see where it looks, and try the different heads.</span><span class="lvl lvl-m"><strong>Attention</strong> lets every token weight the earlier tokens it should listen to, mixing their information into its own representation. Multiple <strong>heads</strong> run in parallel and specialise — reference, verbs, previous word. Click tokens and switch heads to compare.</span><span class="lvl lvl-e">Scaled dot-product attention computes <span class="mono">softmax(QK<sup>T</sup>/√d)V</span> under a causal mask: each position attends only backwards. Heads project Q/K/V differently per layer and specialise (induction, coreference, syntax). The weights here are schematic; the mixing operation is the real one.</span></p>
+    <div class="controls">
+      <label>Attention head
+        <select id="headSelect">
+          <option value="0">Head A — who does “it” mean?</option>
+          <option value="1">Head B — what happened (verbs)</option>
+          <option value="2">Head C — the previous word</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint" id="headDesc"></p>
+    <div class="attn-stage" id="attnStage">
+      <div class="attn-tokens" id="attnTokens"></div>
+      <svg class="attn-svg" id="attnSvg" aria-hidden="true"></svg>
+    </div>
+    <div class="attn-weights" id="attnWeights" aria-live="polite"></div>
+    <p class="note">Schematic teaching data, simplified from how real heads behave.
+    A real model has dozens of layers, each with many heads, all voting at once —
+    and tokens can only look backwards, never ahead.</p>
+  </section>
+
+  <section id="probabilities" class="panel">
+    <h2>5 · Next token — a weighted coin flip</h2>
+    <p><span class="lvl lvl-b">The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted dice. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the dice fair (wild) or loaded (safe).</span><span class="lvl lvl-m">The final layer outputs a score (<strong>logit</strong>) per token; softmax converts logits to a probability distribution, and generation <strong>samples</strong> from it. Temperature rescales the logits before softmax — below 1 sharpens, above 1 flattens. Step through and watch both change.</span><span class="lvl lvl-e">Generation samples from <span class="mono">p = softmax(z/T)</span> over the full vocabulary, autoregressively: the sampled token is appended and the forward pass repeats. T→0 approaches argmax (greedy), T&gt;1 increases entropy. The candidate odds here are didactic; the temperature transform applied to them is exact.</span></p>
+    <p class="story" id="storyText">The capital of France is</p>
+    <div class="prob-bars" id="probBars"></div>
+    <div class="controls">
+      <label>Temperature <span id="probTempVal">0.7</span>
+        <input type="range" id="probTemp" min="0.2" max="2" step="0.1" value="0.7">
+      </label>
+      <button id="stepBtn" type="button">Step — pick next token</button>
+      <button id="storyResetBtn" type="button">Restart</button>
+    </div>
+    <p class="hint" id="stepNote">Candidate odds are teaching data with realistic shape;
+    the temperature maths applied to them is the real maths.</p>
+  </section>
+
+  <section id="journey" class="panel">
+    <h2>6 · Inside the model — journey of a token</h2>
+    <p><span class="lvl lvl-b">Inside the model, your words travel through a stack of layers, like floors in a building. On every floor, each word listens to the others and then thinks about what it now knows. Pick a word and press play to ride along as it changes, floor by floor, until it becomes an answer.</span><span class="lvl lvl-m">There is no single path through a transformer: <strong>every token passes through every layer</strong>. Each layer runs <strong>attention</strong> (mixing between tokens) then an <strong>MLP</strong> (processing within a token), rewriting the token's <strong>representation</strong>. Follow one token through the stack and watch it sharpen.</span><span class="lvl lvl-e">A forward pass is a residual stream: x<sub>l+1</sub> = x<sub>l</sub> + Attn(x<sub>l</sub>) + MLP(x<sub>l</sub> + Attn), per layer, all positions in parallel. Early layers encode position/syntax, middle layers resolve reference, late layers align the stream with the unembedding so the final logits favour the answer. Step through and read the stream evolving.</span></p>
+    <div class="controls">
+      <label>Follow token
+        <select id="journeyToken"></select>
+      </label>
+      <button id="journeyPlayBtn" type="button">Play through layers</button>
+      <button id="journeyResetBtn" type="button">Back to start</button>
+    </div>
+    <label>Layer <span id="journeyLayerVal">0</span> / 15
+      <input type="range" id="journeyLayer" min="0" max="15" step="1" value="0">
+    </label>
+    <div class="journey-grid">
+      <div>
+        <h3>Layer stack</h3>
+        <div class="layer-stack" id="layerStack"></div>
+      </div>
+      <div>
+        <h3>Its representation (16 of thousands of numbers)</h3>
+        <div class="repr-bars" id="reprBars"></div>
+        <p class="hint" id="journeyStage"></p>
+      </div>
+      <div>
+        <h3>Attention at this layer</h3>
+        <div class="attn-weights" id="journeyAttn"></div>
+        <h3>If it had to predict now</h3>
+        <div class="attn-weights" id="journeyPred"></div>
+      </div>
+    </div>
+    <p class="note">Schematic teaching model — the real model stacks layers like this sketch,
+    but the Ollama API does not expose its real internal numbers, so these values are illustrative,
+    shaped like real behaviour: early layers handle position and neighbours, middle layers resolve
+    references like “it”, late layers commit to an answer. For a model's true insides, see the
+    next lesson — a tiny model that really trains in this page.</p>
+  </section>
+
+  <section id="toymodel" class="panel">
+    <h2>7 · A real toy model — watch it think in 3D</h2>
+    <p><span class="lvl lvl-b">This lesson is a <strong>real</strong> tiny model, not a drawing. It learns from a few short sentences, right here in your browser. Train it, then give it a word and watch the glowing route show how it picks the next word.</span><span class="lvl lvl-m">Everything before this lesson was schematic. This one is <strong>real</strong>: a tiny next-token model that trains in your browser, on this page, in front of you. It learns from a handful of short, repetitive sentences. Each word goes in as numbers, passes through two hidden layers of 16 and 12 nodes, and comes out as probabilities for the next word. Node size and brightness are real activations; the amber lines trace the strongest connections behind the prediction.</span><span class="lvl lvl-e">A real (tiny) trained network, fully inspectable: one-hot input → 16 tanh units → 12 tanh units → softmax over a 12-word vocabulary, trained by SGD on next-word pairs. Unlike the Llama in lesson 10, every weight and activation is in-page, so the amber route shows the largest |h·W| contributions to the winning logit. It is an MLP, not a transformer — no attention — which is what makes total inspection possible.</span></p>
+    <div class="controls">
+      <button id="toyTrainBtn" type="button">Train the toy model</button>
+      <button id="toyResetBtn" type="button">Reset weights</button>
+      <label>Input word
+        <select id="toyInput"></select>
+      </label>
+      <span class="loss">Loss: <strong id="toyLoss">not trained</strong></span>
+      <span class="loss">Epoch: <strong id="toyEpoch">0</strong></span>
+    </div>
+    <div id="toyCanvas" class="canvas-box"></div>
+    <p class="gauge-label">Drag to orbit · scroll to zoom</p>
+    <p class="hint" id="toyFallback" hidden>The 3D view needs an internet connection for its library on first load.</p>
+    <h3>What it predicts next (real output probabilities)</h3>
+    <div class="attn-weights" id="toyPred"></div>
+    <p class="hint" id="toyPath">Strongest route: train the model first.</p>
+    <h3 class="depth-m">The maths, with this model's real numbers</h3>
+    <div class="math-box depth-m" id="toyMath">Train or pick a word to see its numbers.</div>
+    <p class="note depth-m">Reading it: each hidden node computes <span class="mono">h = tanh(Σ w·x + b)</span>,
+    each output word gets a score <span class="mono">z = Σ h·W + b</span>, and softmax turns scores into
+    probabilities that add to 100%: <span class="mono">p = e<sup>z</sup> / Σ e<sup>z</sup></span>.
+    During training, the error for the correct word is <span class="mono">loss = −log p(correct)</span>,
+    and <strong>gradient descent</strong> nudges every weight against its gradient:
+    <span class="mono">w ← w − η · ∂loss/∂w</span>, where the output gradient has the beautifully simple
+    form <span class="mono">p − 1</span> for the correct word and <span class="mono">p</span> for every
+    wrong one — push down what it wrongly believed, push up what it missed, a fraction η at a time.</p>
+    <h3>Train it on your own sentences</h3>
+    <p>Replace its whole world: write a few short, repetitive sentences (one per line, at least
+    two words each). The model rebuilds its vocabulary from your words and retrains from scratch.
+    Patterns you repeat are the patterns it will learn.</p>
+    <label for="toyCustomInput">Your sentences</label>
+    <textarea id="toyCustomInput" rows="6"></textarea>
+    <div class="controls">
+      <button id="toyCustomApply" type="button">Use my sentences (reloads page)</button>
+      <button id="toyCustomReset" type="button">Back to built-in sentences</button>
+    </div>
+    <p class="note">Try this: before training, pick “cat” — the prediction is near-random.</p>
+    Train, then look again: after “cat” it should strongly favour “sat”, and after “the” it
+    should spread across “cat”, “dog” and “bird” — because that is exactly the pattern in
+    its tiny world. You are watching lesson 3 (training) create lesson 5 (prediction),
+    with nothing hidden.</p>
+  </section>
+
+  <section id="context" class="panel">
+    <h2>8 · Context — why it forgets</h2>
+    <p><span class="lvl lvl-b">The model can only remember a limited amount of your conversation. When too much has been said, the oldest words fall away and are forgotten — it can't miss them, because for the model they no longer exist. Add sentences and watch the beginning disappear.</span><span class="lvl lvl-m">The model only sees a fixed number of recent tokens: its <strong>context window</strong>. Your prompts and its answers all live there; past the limit, the oldest tokens drop off the front. Add sentences and watch the start of the conversation fall out of the window.</span><span class="lvl lvl-e">Inference is stateless: the entire state is the token sequence inside a fixed context window (this model advertises 128k tokens; the toy window here holds 18). Tokens beyond the limit are not compressed or summarised — they are absent from the next forward pass, which is why long sessions silently lose early instructions.</span></p>
+    <div class="ctx-window" id="ctxWindow" aria-live="polite"></div>
+    <p class="stats"><span id="ctxCount">0</span> / 18 tokens in window · <span id="ctxDropped">0</span> tokens forgotten</p>
+    <div class="gauge" aria-hidden="true"><div class="gauge-fill" id="ctxGaugeFill"></div></div>
+    <p class="gauge-label">Context window fill</p>
+    <label for="ctxInput">Add to the conversation</label>
+    <textarea id="ctxInput" rows="2">My favourite colour is teal and I live in Bergen.</textarea>
+    <div class="controls">
+      <button id="ctxAddBtn" type="button">Add sentence</button>
+      <button id="ctxResetBtn" type="button">Reset conversation</button>
+    </div>
+    <p class="note">Real windows are far bigger (this small model advertises up to 128k tokens),
+    but the rule is identical at any size. This is also why long chats “drift”: the instruction
+    you gave at the start may literally have left the window.</p>
+  </section>
+
+  <section id="limits" class="panel">
+    <h2>9 · Limits — confident, plausible, wrong</h2>
+    <p><span class="lvl lvl-b">The model tries to say things that <em>sound</em> right — which is not the same as <em>being</em> right. When it doesn't know, it often makes things up, confidently. Each button below loads a trap question into the live model; guess what will happen before you run it.</span><span class="lvl lvl-m">Training optimises for plausible text, not verified truth. With no fact database and no self-check, gaps get filled fluently — <strong>hallucination</strong>. Small models do it constantly. Each trap button loads a prompt into the live model; predict the failure first.</span><span class="lvl lvl-e">The objective is likelihood, not truth: nothing in next-token training grounds a claim, and decoding will happily continue a false premise in perfect style. Expect fabricated citations, tokenisation-driven counting failures, and high-probability wrong answers (the 10¢ bat-and-ball lure). Larger models reduce, not eliminate, all three.</span></p>
+    <div class="controls trap-row">
+      <button type="button" class="trap-btn" data-prompt="How many letter r's are in the word strawberry? Answer with just the number.">The letter-count trap</button>
+      <button type="button" class="trap-btn" data-prompt="Give me a real scientific paper, with authors and year, proving that goldfish have a 3-second memory.">The fake-citation trap</button>
+      <button type="button" class="trap-btn" data-prompt="A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Explain step by step.">The rushed-maths trap</button>
+    </div>
+    <p class="note">Why it fails: counting needs letters, but the model sees tokens (lesson 1);
+    citations are easy to imitate without existing; and the maths answer that “sounds right”
+    (10 cents) out-competes the correct one (5 cents) unless the model slows down.
+    Bigger models fall for these less — none are immune.</p>
+  </section>
+
+  <section id="playground" class="panel">
+    <h2>10 · Live model — everything at once</h2>
+    <p><span class="lvl lvl-b">Now the real thing: a small AI model running on your own computer. Type something, press Generate, and watch it write — one small piece at a time, always guessing what comes next. Nothing you type leaves this machine.</span><span class="lvl lvl-m">This talks to a real, small Llama model running locally via Ollama — nothing leaves this machine. It generates autoregressively, one token at a time, sampling each next token from its probability distribution at your chosen temperature.</span><span class="lvl lvl-e">Live inference against llama3.2:1b served by Ollama on localhost:11434, streamed token-by-token. Each chunk is one sampled token from softmax(z/T) with your T; the full context is reprocessed per token (KV-cached server-side). Fully local: no request leaves this machine.</span></p>
+    <label for="promptInput">Prompt</label>
+    <textarea id="promptInput" rows="3">The capital of France is</textarea>
+    <div class="controls">
+      <label>Temperature <span id="tempVal">0.7</span>
+        <input type="range" id="tempRange" min="0" max="1.5" step="0.1" value="0.7">
+      </label>
+      <button id="generateBtn" type="button">Generate</button>
+      <button id="stopBtn" type="button" disabled>Stop</button>
+    </div>
+    <p class="hint">Low temperature = safe, repetitive picks. High temperature = wilder, riskier picks.</p>
+    <canvas id="particleCanvas" class="particle-canvas" width="860" height="110" aria-hidden="true"></canvas>
+    <p class="gauge-label">Token stream — one burst per generated token chunk</p>
+    <div class="output" id="output" aria-live="polite"></div>
+    <p class="stats" id="liveStats"></p>
+    <div class="offline-help" id="offlineHelp" hidden>
+      <h3>The local model is not reachable</h3>
+      <ol>
+        <li>Install Ollama from <span class="mono">ollama.com/download</span></li>
+        <li>Run: <span class="mono">ollama pull llama3.2:1b</span></li>
+        <li>Run: <span class="mono">ollama serve</span> (or just start the Ollama app)</li>
+        <li>Press <strong>Re-check</strong> above.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>LLM Visual Lab — a local learning tool. Lessons 1–6 are schematic teaching models,
+  lesson 7 is a real (tiny) trained model, and lesson 10 uses the real local Llama.</p>
+</footer>
+
+<div class="error-banner" id="errorBanner" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

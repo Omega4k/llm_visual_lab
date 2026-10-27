@@ -65,6 +65,7 @@ textarea:focus { outline: 2px solid var(--accent-dark); }
 .note { color: var(--muted); font-size: 0.88rem; border-top: 1px dashed var(--panel-edge); padding-top: 0.7rem; }
 .canvas-box { height: 380px; border-radius: 8px; overflow: hidden; background: #0d1117; }
 #toyCanvas { height: 560px; }
+#lossCanvas { height: 470px; }
 .canvas-box canvas { display: block; }
 .controls { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-top: 0.8rem; }
 .controls label { margin: 0; font-weight: 400; font-size: 0.9rem; }

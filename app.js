@@ -1440,11 +1440,13 @@ async function initLoss3D() {
 
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(0.13, 22, 22),
-    new THREE.MeshBasicMaterial({ color: theme3D.accent }));
+    new THREE.MeshBasicMaterial({ color: theme3D.accent, depthTest: false }));
+  ball.renderOrder = 999;
   group.add(ball);
   let pathLine = new THREE.Line(
     new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({ color: theme3D.accent, transparent: true, opacity: 0.95 }));
+    new THREE.LineBasicMaterial({ color: theme3D.accent, transparent: true, opacity: 0.95, depthTest: false }));
+  pathLine.renderOrder = 998;
   group.add(pathLine);
   const pathPoints = [];
   const toWorld = (x, y) => new THREE.Vector3(x, lossFn(x, y) * 0.55 + 0.13, -y);
@@ -1479,32 +1481,58 @@ async function initLoss3D() {
     composer.addPass(new OutputPass());
   } catch (err) { composer = null; }
 
-  let dragging = false, px = 0, py = 0;
-  let sph = { theta: 0.65, phi: 0.95, radius: 7.2 };
+  // Camera: drag = orbit, right-drag / Shift+drag = pan (move), wheel = zoom.
+  // Framed closer and lower than before so the surface fills the whole box,
+  // not just the top half.
+  let dragging = false, panning = false, px = 0, py = 0;
+  let sph = { theta: 0.65, phi: 0.85, radius: 8.8 };
+  const target = new THREE.Vector3(0, 0.85, 0);
   const el = renderer.domElement;
   el.style.touchAction = "none";
   function applyCam() {
     camera.position.set(
-      sph.radius * Math.sin(sph.phi) * Math.cos(sph.theta),
-      sph.radius * Math.cos(sph.phi) + 0.4,
-      sph.radius * Math.sin(sph.phi) * Math.sin(sph.theta));
-    camera.lookAt(0, 0.4, 0);
+      target.x + sph.radius * Math.sin(sph.phi) * Math.cos(sph.theta),
+      target.y + sph.radius * Math.cos(sph.phi),
+      target.z + sph.radius * Math.sin(sph.phi) * Math.sin(sph.theta));
+    camera.lookAt(target);
   }
   applyCam();
-  el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    panning = e.button === 2 || e.shiftKey;
+    px = e.clientX; py = e.clientY;
+    el.setPointerCapture(e.pointerId);
+  });
   el.addEventListener("pointermove", (e) => {
     if (!dragging) return;
-    sph.theta -= (e.clientX - px) * 0.008;
-    sph.phi = Math.max(0.15, Math.min(1.45, sph.phi - (e.clientY - py) * 0.006));
+    const dx = e.clientX - px, dy = e.clientY - py;
+    if (panning) {
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      const scale = sph.radius * 0.0016;
+      target.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
+      target.x = Math.max(-3, Math.min(3, target.x));
+      target.y = Math.max(-1.5, Math.min(2.5, target.y));
+      target.z = Math.max(-3, Math.min(3, target.z));
+    } else {
+      sph.theta -= dx * 0.008;
+      sph.phi = Math.max(0.15, Math.min(1.45, sph.phi - dy * 0.006));
+    }
     px = e.clientX; py = e.clientY;
     applyCam();
   });
-  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("pointerup", () => { dragging = false; panning = false; });
   el.addEventListener("wheel", (e) => {
     e.preventDefault();
     sph.radius = Math.max(3.5, Math.min(13, sph.radius + e.deltaY * 0.01));
     applyCam();
   }, { passive: false });
+  el.addEventListener("dblclick", () => {
+    sph = { theta: 0.65, phi: 0.85, radius: 8.8 };
+    target.set(0, 0.85, 0);
+    applyCam();
+  });
 
   const reduceM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function tick() {

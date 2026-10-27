@@ -127,7 +127,7 @@
     <h3>The loss landscape — gradient descent in 3D</h3>
     <p><span class="lvl lvl-b">Imagine every possible setting of the model as a place in a hilly landscape, where the height is how wrong it is. Training is walking downhill to the lowest point. The ball below can only feel the slope under its feet — that slope is the <strong>gradient</strong> — and each step goes downhill by an amount set by the <strong>learning rate</strong>. Too small: it crawls. Too big: it leaps across the valley and climbs the other side.</span><span class="lvl lvl-m">Every weight setting is a point on a <strong>loss landscape</strong>; height is the loss. Gradient descent steps against the gradient, <span class="mono">w ← w − η·∇L</span>. Drag to orbit, scroll to zoom, then step the ball downhill. Try η = 0.1 (crawls), 0.45 (smooth), then 1.1 (overshoots and oscillates).</span><span class="lvl lvl-e">The surface is <span class="mono">L(x,y) = 0.6x² + 0.25y² + 0.35·sin(x)·cos(y)</span> — a non-convex bowl standing in for a loss surface over two weights (real models: billions). The ball follows exact gradient descent on this function; watch ∇L shrink near the minimum, then reset with η = 1.2 and see it leap across the minimum and have to come back — with a worse-conditioned surface, that is where divergence begins.</span></p>
     <div id="lossCanvas" class="canvas-box"></div>
-    <p class="gauge-label">Drag to orbit · scroll to zoom</p>
+    <p class="gauge-label">Drag to orbit · right-drag (or Shift+drag) to move · scroll to zoom · double-click to reset view</p>
     <div class="controls">
       <label>Learning rate η <span id="lrVal">0.45</span>
         <input type="range" id="lrRange" min="0.05" max="1.2" step="0.05" value="0.45">

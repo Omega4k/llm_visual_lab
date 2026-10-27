@@ -300,3 +300,66 @@ body.level-beginner .depth-m { display: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Colourful pass: per-lesson hues, gradients, background glows ---------- */
+:root { --accent-2: #c084fc; }
+body.theme-ice { --accent-2: #f472b6; }
+body.theme-emerald { --accent-2: #38bdf8; }
+body.theme-rose { --accent-2: #818cf8; }
+
+body {
+  background:
+    radial-gradient(700px 420px at 8% -60px, rgba(192, 132, 252, 0.14), transparent 70%),
+    radial-gradient(760px 460px at 95% 10%, rgba(56, 189, 248, 0.12), transparent 70%),
+    radial-gradient(820px 520px at 50% 115%, rgba(244, 114, 182, 0.10), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
+}
+h1 {
+  background: linear-gradient(92deg, var(--accent), var(--accent-2), #38bdf8);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+button { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+button:hover:not(:disabled) { filter: brightness(1.12); }
+.next-btn { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.progress-fill { background: linear-gradient(90deg, #f59e0b, #4ade80, #38bdf8, #c084fc, #f472b6); }
+.gauge-fill { background: linear-gradient(90deg, var(--bar), var(--accent-2)); }
+::selection { background: var(--accent-2); color: #14181d; }
+
+#tokens       { --lesson: #f5a524; }
+#embeddings   { --lesson: #38bdf8; }
+#training     { --lesson: #4ade80; }
+#attention    { --lesson: #c084fc; }
+#probabilities{ --lesson: #fb7185; }
+#journey      { --lesson: #22d3ee; }
+#toymodel     { --lesson: #f472b6; }
+#context      { --lesson: #a3e635; }
+#limits       { --lesson: #fb923c; }
+#playground   { --lesson: #818cf8; }
+section.panel { border-top: 3px solid var(--lesson, var(--accent)); }
+section.panel h2 { color: var(--lesson, var(--accent)); }
+.panel::before, .panel::after { border-color: var(--lesson, var(--accent-dark)); }
+section.panel .telemetry { color: var(--lesson, var(--label-dim)); }
+
+.lesson-nav a:nth-child(1)  { --chip: #f5a524; }
+.lesson-nav a:nth-child(2)  { --chip: #38bdf8; }
+.lesson-nav a:nth-child(3)  { --chip: #4ade80; }
+.lesson-nav a:nth-child(4)  { --chip: #c084fc; }
+.lesson-nav a:nth-child(5)  { --chip: #fb7185; }
+.lesson-nav a:nth-child(6)  { --chip: #22d3ee; }
+.lesson-nav a:nth-child(7)  { --chip: #f472b6; }
+.lesson-nav a:nth-child(8)  { --chip: #a3e635; }
+.lesson-nav a:nth-child(9)  { --chip: #fb923c; }
+.lesson-nav a:nth-child(10) { --chip: #818cf8; }
+.lesson-nav a {
+  border-color: color-mix(in srgb, var(--chip, var(--panel-edge)) 55%, transparent);
+  background: color-mix(in srgb, var(--chip, var(--panel)) 16%, var(--panel));
+  border-top: 3px solid var(--chip, var(--panel-edge));
+}
+.lesson-nav a:hover, .lesson-nav a:focus {
+  background: color-mix(in srgb, var(--chip, var(--panel)) 32%, var(--panel));
+}
+.level-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.quiz-opt.correct { background: linear-gradient(135deg, #4ade80, #22d3ee); }
+.complete-btn.is-complete { background: linear-gradient(135deg, #4ade80, #a3e635); }

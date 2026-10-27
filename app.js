@@ -642,6 +642,320 @@ async function initCandidate3D() {
 }
 initCandidate3D();
 
+/* ---------- Showcase: live token journey through 16 layers in 3D ---------- */
+let journeyStart3D = null;
+let journeySetCandidates3D = null;
+
+async function initJourneyLive3D() {
+  const box = document.getElementById("journeyLive3D");
+  let THREE;
+  try { THREE = await import("three"); } catch (err) { return; }
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(theme3D.bg);
+  const camera = new THREE.PerspectiveCamera(50, box.clientWidth / box.clientHeight, 0.1, 100);
+  camera.position.set(0.3, 0.5, 8.4);
+  camera.lookAt(0.3, 0, 0);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(box.clientWidth, box.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  box.appendChild(renderer.domElement);
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(420 * 3);
+  for (let i = 0; i < 420; i++) {
+    const r = 9 + Math.random() * 10;
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(2 * Math.random() - 1);
+    starPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    starPos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th) * 0.8;
+    starPos[i * 3 + 2] = r * Math.cos(ph) - 4;
+  }
+  starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+  const starMat = new THREE.PointsMaterial({
+    color: theme3D.star, size: 0.05, transparent: true, opacity: 0.8 });
+  scene.add(new THREE.Points(starGeo, starMat));
+
+  function makeLabel(scaleX, scaleY) {
+    const c = document.createElement("canvas");
+    c.width = 320; c.height = 140;
+    const tex = new THREE.CanvasTexture(c);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthTest: false }));
+    sprite.scale.set(scaleX, scaleY, 1);
+    sprite.renderOrder = 20;
+    sprite.userData = { canvas: c, tex };
+    return sprite;
+  }
+  function drawLabel(sprite, line1, line2, chosen) {
+    const { canvas, tex } = sprite.userData;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 320, 140);
+    ctx.fillStyle = "rgba(10, 14, 19, 0.88)";
+    ctx.strokeStyle = chosen ? "rgba(255, 210, 140, 0.95)" : "rgba(140, 165, 190, 0.55)";
+    ctx.lineWidth = chosen ? 5 : 3;
+    ctx.beginPath();
+    ctx.roundRect(14, 8, 292, 124, 18);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2ede4";
+    ctx.font = "700 42px Segoe UI, sans-serif";
+    ctx.fillText(String(line1).replace(/\s/g, "␣").slice(0, 12) || "∅", 160, 58);
+    ctx.fillStyle = chosen ? "#ffd28c" : "#a9c6de";
+    ctx.font = "700 36px Consolas, monospace";
+    ctx.fillText(line2 || "", 160, 106);
+    tex.needsUpdate = true;
+  }
+
+  // The 16-layer stack (llama3.2:1b's real layer count).
+  const LAYERS = 16;
+  const slabs = [];
+  for (let i = 0; i < LAYERS; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: theme3D.input, transparent: true, opacity: 0.22 });
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.19, 1.35), mat);
+    slab.position.set(-2.1, -2.35 + i * 0.295, 0);
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(2.52, 0.21, 1.37)),
+      new THREE.LineBasicMaterial({ color: 0x9fc6de, transparent: true, opacity: 0.28 }));
+    slab.add(edges);
+    group.add(slab);
+    slabs.push({ mesh: slab, flash: 0 });
+  }
+  const stackLabel = makeLabel(1.5, 0.66);
+  stackLabel.position.set(-2.1, 2.85, 0);
+  drawLabel(stackLabel, "16 layers", "transformer", false);
+  group.add(stackLabel);
+
+  // Travelling token: glowing orb + its label.
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 20, 20),
+    new THREE.MeshBasicMaterial({ color: theme3D.accent, depthTest: false }));
+  orb.renderOrder = 15;
+  orb.visible = false;
+  group.add(orb);
+  const tokenLabel = makeLabel(1.3, 0.57);
+  tokenLabel.visible = false;
+  group.add(tokenLabel);
+
+  // Candidate towers on the right.
+  const platform = new THREE.Mesh(
+    new THREE.BoxGeometry(5.4, 0.16, 2.2),
+    new THREE.MeshBasicMaterial({ color: 0x232c38 }));
+  platform.position.set(2.55, -2.62, 0);
+  group.add(platform);
+  const towers = [];
+  for (let i = 0; i < 5; i++) {
+    const geo = new THREE.BoxGeometry(0.68, 1, 0.68);
+    geo.translate(0, 0.5, 0);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: theme3D.input, transparent: true, opacity: 0.92 }));
+    mesh.position.set(0.45 + i * 1.05, -2.54, 0);
+    mesh.scale.y = 0.1;
+    mesh.visible = false;
+    const label = makeLabel(1.05, 0.46);
+    label.visible = false;
+    group.add(mesh);
+    group.add(label);
+    towers.push({ mesh, label, target: 0.1, chosen: false });
+  }
+  const candLabel = makeLabel(1.7, 0.74);
+  candLabel.position.set(2.55, 2.85, 0);
+  drawLabel(candLabel, "next token", "real candidates", false);
+  group.add(candLabel);
+
+  // Animation state: a queue of prompt tokens rising through the stack.
+  const anim = { queue: [], current: null, progress: 0 };
+  journeyStart3D = (tokens) => {
+    anim.queue = tokens.slice(0, 10);
+    anim.current = null;
+    anim.progress = 0;
+    for (const s of slabs) s.flash = 0;
+  };
+  journeySetCandidates3D = (cands, chosenToken) => {
+    towers.forEach((t, i) => {
+      const c = cands[i];
+      if (!c) { t.mesh.visible = false; t.label.visible = false; return; }
+      t.mesh.visible = true;
+      t.label.visible = true;
+      t.chosen = c.token === chosenToken;
+      t.target = 0.1 + Math.sqrt(Math.max(0, c.p)) * 3.4;
+      t.mesh.material.color.setHex(t.chosen ? theme3D.accent : theme3D.input);
+      drawLabel(t.label, c.token, fmtPct(c.p), t.chosen);
+    });
+  };
+  themeRecolorers.push((p) => {
+    scene.background = new THREE.Color(p.bg);
+    starMat.color.setHex(p.star);
+    orb.material.color.setHex(p.accent);
+    colInput.setHex(p.input);
+    colAccent.setHex(p.accent);
+    for (const t of towers) t.mesh.material.color.setHex(t.chosen ? p.accent : p.input);
+  });
+
+  let composer = null;
+  try {
+    const { EffectComposer } = await import("three/addons/postprocessing/EffectComposer.js");
+    const { RenderPass } = await import("three/addons/postprocessing/RenderPass.js");
+    const { UnrealBloomPass } = await import("three/addons/postprocessing/UnrealBloomPass.js");
+    const { OutputPass } = await import("three/addons/postprocessing/OutputPass.js");
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(
+      new THREE.Vector2(box.clientWidth, box.clientHeight), 0.55, 0.7, 0.5));
+    composer.addPass(new OutputPass());
+  } catch (err) { composer = null; }
+
+  let dragging = false, px = 0, py = 0, ry = 0, tilt = 0.5;
+  const el = renderer.domElement;
+  el.style.touchAction = "none";
+  el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    ry += (e.clientX - px) * 0.008;
+    tilt = Math.max(0, Math.min(1, tilt + (e.clientY - py) * 0.004));
+    px = e.clientX; py = e.clientY;
+  });
+  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    camera.position.z = Math.max(5, Math.min(13, camera.position.z + e.deltaY * 0.01));
+  }, { passive: false });
+
+  const reduceM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const colInput = new THREE.Color(theme3D.input);
+  const colAccent = new THREE.Color(theme3D.accent);
+  const tmpCol = new THREE.Color();
+  let last = performance.now();
+  function tick(now) {
+    requestAnimationFrame(tick);
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!dragging && !reduceM) ry += 0.0012;
+    group.rotation.y = Math.sin(ry) * 0.35;
+    camera.position.y = -0.6 + tilt * 2.4;
+    camera.lookAt(0.3, 0, 0);
+
+    // Token pass animation.
+    if (!anim.current && anim.queue.length) {
+      anim.current = anim.queue.shift();
+      anim.progress = 0;
+      drawLabel(tokenLabel, anim.current, "token", true);
+      orb.visible = true;
+      tokenLabel.visible = true;
+    }
+    if (anim.current) {
+      anim.progress += dt / 0.55;
+      const p = Math.min(1, anim.progress);
+      const y = -2.75 + p * 5.3;
+      orb.position.set(-2.1, y, 0);
+      tokenLabel.position.set(-2.1, y + 0.55, 0);
+      const slabIdx = Math.floor(p * LAYERS);
+      if (slabIdx < LAYERS) slabs[slabIdx].flash = 1;
+      if (p >= 1) { anim.current = null; orb.visible = false; tokenLabel.visible = false; }
+    }
+    for (const s of slabs) {
+      s.flash *= 0.94;
+      tmpCol.copy(colInput).lerp(colAccent, s.flash);
+      s.mesh.material.color.copy(tmpCol);
+      s.mesh.material.opacity = 0.22 + s.flash * 0.65;
+    }
+    const t = now / 1000;
+    for (const tw of towers) {
+      if (!tw.mesh.visible) continue;
+      tw.mesh.scale.y += (tw.target - tw.mesh.scale.y) * 0.08;
+      tw.label.position.set(tw.mesh.position.x, -2.54 + tw.mesh.scale.y + 0.5, 0);
+      if (tw.chosen && !reduceM) tw.mesh.material.opacity = 0.94 + Math.sin(t * 3.2) * 0.06;
+    }
+    if (composer) composer.render(); else renderer.render(scene, camera);
+  }
+  requestAnimationFrame(tick);
+  window.addEventListener("resize", () => {
+    camera.aspect = box.clientWidth / box.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(box.clientWidth, box.clientHeight);
+    if (composer) composer.setSize(box.clientWidth, box.clientHeight);
+  });
+}
+initJourneyLive3D();
+
+const journeyBtn = document.getElementById("journeyBtn");
+const journeyStatus = document.getElementById("journeyStatus");
+const journeyOut = document.getElementById("journeyOut");
+journeyBtn.addEventListener("click", async () => {
+  const prompt = document.getElementById("journeyPrompt").value.trim();
+  if (!prompt) { showError("Write a prompt first."); return; }
+  if (!modelOnline) {
+    showError("The local model is offline. Start Ollama, then Re-check in lesson 10.");
+    journeyStatus.textContent = "Model offline.";
+    return;
+  }
+  const tokens = splitTokens(prompt).filter((t) => !/^\s+$/.test(t)).slice(0, 10);
+  if (journeyStart3D) journeyStart3D(tokens);
+  if (journeySetCandidates3D) journeySetCandidates3D([], null);
+  journeyOut.textContent = "";
+  journeyBtn.disabled = true;
+  journeyStatus.textContent = "Sending " + tokens.length + " tokens through the layers…";
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 90000);
+  let first = true;
+  try {
+    const res = await fetch(OLLAMA + "/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, prompt, stream: true,
+        logprobs: true, top_logprobs: 5,
+        options: { temperature: parseFloat(tempRange.value), num_predict: 48 },
+      }),
+    });
+    if (!res.ok) throw new Error("Model returned HTTP " + res.status);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line);
+        if (json.response) {
+          journeyOut.textContent += json.response;
+          if (first) {
+            first = false;
+            const lp = (json.logprobs || [])[0];
+            if (lp && journeySetCandidates3D) {
+              const byToken = new Map();
+              for (const t of lp.top_logprobs) {
+                const p = Math.exp(t.logprob);
+                if (!byToken.has(t.token) || byToken.get(t.token).p < p) {
+                  byToken.set(t.token, { token: t.token, p });
+                }
+              }
+              journeySetCandidates3D(
+                [...byToken.values()].sort((a, b) => b.p - a.p), lp.token);
+            }
+            journeyStatus.textContent = "First prediction is in the towers — model still writing…";
+            sndToken(1);
+          }
+        }
+      }
+    }
+    journeyStatus.textContent = "Done. Towers show the first prediction; every token is analysed in lesson 10.";
+    sndDone();
+  } catch (err) {
+    journeyStatus.textContent = "Generation failed: " + err.message;
+  } finally {
+    clearTimeout(timeout);
+    journeyBtn.disabled = false;
+  }
+});
+
 /* ---------- Lesson 3: attention (schematic teaching data) ---------- */
 const ATTN_WORDS = ["The", "cat", "sat", "on", "the", "mat", "because", "it", "was", "tired"];
 const ATTN_HEADS = [

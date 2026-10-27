@@ -58,6 +58,20 @@
 </div>
 
 <main>
+  <section id="showcase" class="panel">
+    <h2>★ Live journey — your words through the real model</h2>
+    <p><span class="lvl lvl-b">The showpiece: type anything, press the button, and watch your words travel up through the model's layers as glowing tokens — then see what it predicts next, with the real choices it weighed up, as towers on the right. It talks to the small Llama model running on your own computer.</span><span class="lvl lvl-m">Your prompt is split into tokens, each token is animated rising through the 16 transformer layers of llama3.2:1b, and the towers on the right show the real top-5 next-token candidates (real logprobs) for the first generated token. The stream below is the real answer continuing.</span><span class="lvl lvl-e">Honesty note: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation shown, the 16-layer count (real for llama3.2:1b via <span class="mono">/api/show</span>), the streamed output, and the candidate probabilities (<span class="mono">exp(logprob)</span>) are real. Full per-token analysis lives in lesson 10.</span></p>
+    <label for="journeyPrompt">Your prompt</label>
+    <textarea id="journeyPrompt" rows="2">The capital of France is</textarea>
+    <div class="controls">
+      <button id="journeyBtn" type="button">Send it through the model</button>
+      <span class="stats" id="journeyStatus">Idle — waiting for a prompt.</span>
+    </div>
+    <div id="journeyLive3D" class="canvas-box"></div>
+    <p class="gauge-label">Token journey — drag to orbit · scroll to zoom · left: your tokens rising through 16 layers · right: real next-token candidates</p>
+    <div class="output" id="journeyOut" aria-live="polite"></div>
+  </section>
+
   <section id="tokens" class="panel">
     <h2>1 · Tokens — how the model reads</h2>
     <p><span class="lvl lvl-b">A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</span><span class="lvl lvl-m">A model never sees words. It sees <strong>tokens</strong> from a fixed vocabulary, produced by a tokenizer. Common words are single tokens; rare or long words split into subword pieces, and spaces and punctuation count too.</span><span class="lvl lvl-e">Input text is segmented by a learned subword tokenizer (BPE-style merges over bytes) into IDs from a fixed vocabulary. Frequent strings become single tokens; rare strings fragment, which is why token count — not character count — drives cost, context usage, and letter-level blindness.</span></p>

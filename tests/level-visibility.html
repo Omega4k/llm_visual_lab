@@ -60,6 +60,10 @@ document.getElementById("f").addEventListener("load", async () => {
   check("level/sound/theme/quiz controls are inside the sidebar",
     ["[data-set-level='expert']", "#soundBtn", "#themeSelect", "#quizOpenBtn"]
       .every((sel) => sidebarEl.contains(doc.querySelector(sel))));
+  const lvlBtns = [...doc.querySelectorAll(".level-btns .level-btn")];
+  check("level buttons form one group on a single row",
+    lvlBtns.length === 3 &&
+    lvlBtns.every((b) => b.offsetTop === lvlBtns[0].offsetTop));
   doc.getElementById("soundBtn").click();
   check("sound toggle works from sidebar",
     doc.getElementById("soundBtn").getAttribute("aria-pressed") === "true");

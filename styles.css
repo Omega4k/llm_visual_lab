@@ -44,6 +44,47 @@ h2 { margin-top: 0; font-size: 1.35rem; color: var(--accent); }
 }
 .lesson-nav a:hover, .lesson-nav a:focus { border-color: var(--accent); }
 main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
+/* One lesson at a time, chosen from the left sidebar. */
+.layout {
+  display: grid; grid-template-columns: 15rem minmax(0, 1fr);
+  max-width: 88rem; margin: 0 auto; align-items: start;
+}
+.layout main { margin: 0 auto; width: 100%; }
+.sidebar {
+  position: sticky; top: 4.2rem; padding: 1.2rem 0.6rem 1.2rem 2rem;
+  max-height: calc(100vh - 4.2rem); overflow-y: auto;
+}
+.sidebar-title {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 0.6rem;
+}
+.sidebar .lesson-nav { flex-direction: column; flex-wrap: nowrap; padding: 0; gap: 0.4rem; }
+.sidebar .lesson-nav a { display: block; border-radius: 8px; }
+.sidebar .lesson-nav a.active {
+  border-color: var(--accent); font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.sidebar-progress {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;
+  font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap;
+}
+#menuBtn { display: none; background: var(--control); color: var(--text); font-weight: 600; padding: 0.4rem 0.9rem; }
+.sidebar-scrim { position: fixed; inset: 0; background: rgba(4, 8, 12, 0.55); z-index: 85; }
+main > section.panel { display: none; }
+main > section.panel.active-view { display: block; }
+@media (max-width: 900px) {
+  .layout { display: block; }
+  #menuBtn { display: inline-block; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 90;
+    width: min(19rem, 86vw); max-height: none; padding: 1.2rem 1rem;
+    background: var(--panel); border-right: 2px solid var(--accent-dark);
+    transform: translateX(-106%); transition: transform 0.28s ease;
+    box-shadow: 18px 0 40px rgba(0, 0, 0, 0.45);
+  }
+  .sidebar.open { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
 .panel {
   background: var(--panel); border: 1px solid var(--panel-edge);
   border-radius: 10px; padding: 1.4rem 1.6rem; margin-bottom: 1.4rem;

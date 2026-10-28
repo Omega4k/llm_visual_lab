@@ -46,6 +46,44 @@ try {
   if (saved && ["beginner", "medium", "expert"].includes(saved)) setLevel(saved);
 } catch (e) { /* keep default */ }
 
+/* ---------- One lesson at a time, picked from the left sidebar ---------- */
+const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
+  "journey", "toymodel", "context", "limits", "playground", "showcase"];
+const sidebar = document.getElementById("sidebar");
+const sidebarScrim = document.getElementById("sidebarScrim");
+const menuBtn = document.getElementById("menuBtn");
+function setSidebar(open) {
+  sidebar.classList.toggle("open", open);
+  sidebarScrim.hidden = !open;
+  menuBtn.setAttribute("aria-expanded", String(open));
+}
+menuBtn.addEventListener("click", () =>
+  setSidebar(!sidebar.classList.contains("open")));
+sidebarScrim.addEventListener("click", () => setSidebar(false));
+function showLesson(id) {
+  if (!VIEW_IDS.includes(id)) id = "tokens";
+  document.querySelectorAll("main > section.panel").forEach((sec) =>
+    sec.classList.toggle("active-view", sec.id === id));
+  document.querySelectorAll(".lesson-nav a").forEach((a) => {
+    const on = a.getAttribute("href") === "#" + id;
+    a.classList.toggle("active", on);
+    if (on) a.setAttribute("aria-current", "true");
+    else a.removeAttribute("aria-current");
+  });
+  setSidebar(false);
+  window.scrollTo(0, 0);
+  // Canvases were created while their lesson was hidden (zero size); the
+  // scenes all listen for window resize, so re-fire it now that the lesson
+  // is laid out (plus once shortly after, for anything still settling).
+  // Not tied to requestAnimationFrame: hidden/background pages may not tick.
+  window.dispatchEvent(new Event("resize"));
+  setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
+}
+document.querySelectorAll(".lesson-nav a").forEach((a) =>
+  a.addEventListener("click", () => showLesson(a.getAttribute("href").slice(1))));
+window.addEventListener("hashchange", () => showLesson(location.hash.slice(1)));
+showLesson(location.hash.slice(1) || "tokens");
+
 /* ---------- Colour theme ---------- */
 const THEME_3D = {
   amber:   { bg: 0x0d1117, input: 0x5da9c4, hidden: 0x7fb069, hidden2: 0x9bc49b, output: 0xc98bb9, accent: 0xe0a458, star: 0x8fa3bf, embedGroups: [0x7fb069, 0x5da9c4, 0xe0a458, 0xd96a5f] },
@@ -1247,8 +1285,9 @@ renderContext();
 document.querySelectorAll(".trap-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.getElementById("promptInput").value = btn.dataset.prompt;
-    document.getElementById("playground").scrollIntoView({ behavior: "smooth" });
-    showError("Trap loaded below — press Generate when you have made your prediction.");
+    if (location.hash === "#playground") showLesson("playground");
+    else location.hash = "playground";
+    showError("Trap loaded in lesson 10 — press Generate when you have made your prediction.");
   });
 });
 

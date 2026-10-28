@@ -51,7 +51,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 
 ## Features
 
-- Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound. Pilot: lessons 1 and 5 are additive — the base text never changes, higher levels only reveal tagged “goes deeper” blocks at the end of the lesson (highlighted briefly on level-up); the other lessons still swap text per level
+- Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound. All lessons are additive — the base text never changes, higher levels only reveal tagged “goes deeper” blocks at the end of the lesson (highlighted briefly on level-up). One lesson is shown at a time, picked from the left sidebar (hash links like `#tokens` still work; on narrow screens the sidebar becomes a drawer)
 - Progress tracking, saved locally; checkpoint quizzes (2 questions per lesson) live in a slide-in Quiz drawer (button in the top bar), separate from the lessons
 - "Mark complete" plus a Next-lesson button on every lesson
 - Lesson 1 compares the teaching splitter with a real BPE tokenizer (GPT-2 family,

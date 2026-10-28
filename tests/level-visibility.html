@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Level visibility test</title>
+<!--
+  Manual/headless check for the additive knowledge levels (lessons 1 & 5).
+  Serve the project root (python -m http.server 8000), then open
+  http://localhost:8000/tests/level-visibility.html — or run headless:
+    chrome --headless --dump-dom http://localhost:8000/tests/level-visibility.html
+  Pass = document.title is "PASS" and every line below says ok.
+-->
+<iframe id="f" src="/" width="1000" height="800"></iframe>
+<pre id="out">running…</pre>
+<script>
+document.getElementById("f").addEventListener("load", () => {
+  const doc = document.getElementById("f").contentDocument;
+  const win = document.getElementById("f").contentWindow;
+  win.localStorage.clear();
+  const lines = [];
+  let failures = 0;
+  function check(name, cond) {
+    lines.push((cond ? "ok   " : "FAIL ") + name);
+    if (!cond) failures++;
+  }
+  function visible(el) {
+    // Measure the rendered text, not the box: an element whose text is
+    // display:none still has a (collapsing) box, so check a Range over
+    // its contents for a non-empty rect.
+    if (!el || getComputedStyle(el).display === "none") return false;
+    const r = doc.createRange();
+    r.selectNodeContents(el);
+    return [...r.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0);
+  }
+  function baseP(sectionId) {
+    return doc.querySelector("#" + sectionId + " > p");
+  }
+  const expectedAdds = { beginner: [], medium: ["m"], expert: ["m", "e"] };
+  for (const level of ["beginner", "medium", "expert"]) {
+    doc.querySelector('[data-set-level="' + level + '"]').click();
+    // Additive lessons: base text must stay visible at every level.
+    for (const id of ["tokens", "probabilities"]) {
+      check(level + ": " + id + " base text visible", visible(baseP(id)));
+      const adds = [...doc.querySelectorAll("#" + id + " .lvl-add")];
+      const want = expectedAdds[level];
+      check(level + ": " + id + " shows adds [" + want + "]",
+        adds.every((el) =>
+          visible(el) === want.some((w) => el.classList.contains("lvl-add-" + w))));
+    }
+    // Non-pilot lessons keep swap-per-level behaviour.
+    const spans = ["b", "m", "e"].map((s) =>
+      doc.querySelector("#embeddings .lvl-" + s));
+    const active = { beginner: 0, medium: 1, expert: 2 }[level];
+    check(level + ": embeddings still swaps text",
+      spans.every((el, i) => visible(el) === (i === active)));
+  }
+  document.getElementById("out").textContent =
+    (failures ? "FAIL (" + failures + ")\n" : "PASS\n") + lines.join("\n");
+  document.title = failures ? "FAIL" : "PASS";
+});
+</script>

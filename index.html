@@ -60,7 +60,7 @@
 <main>
   <section id="tokens" class="panel">
     <h2>1 · Tokens — how the model reads</h2>
-    <p><span class="lvl lvl-b">A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</span></p>
+    <p>A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</p>
     <label for="tokenInput">Your text</label>
     <textarea id="tokenInput" rows="3">The quick brown fox jumps over the lazy dog.</textarea>
     <div class="token-row" id="tokenRow" aria-live="polite"></div>
@@ -167,7 +167,7 @@
 
   <section id="probabilities" class="panel">
     <h2>5 · Next token — a weighted coin flip</h2>
-    <p><span class="lvl lvl-b">The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted dice. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the dice fair (wild) or loaded (safe).</span></p>
+    <p>The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted dice. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the dice fair (wild) or loaded (safe).</p>
     <p class="story" id="storyText">The capital of France is</p>
     <div class="prob-bars" id="probBars"></div>
     <div class="controls">

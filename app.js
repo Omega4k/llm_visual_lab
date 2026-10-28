@@ -48,7 +48,7 @@ try {
 
 /* ---------- One lesson at a time, picked from the left sidebar ---------- */
 const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "toymodel", "context", "limits", "playground", "scaling"];
+  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
 const sidebar = document.getElementById("sidebar");
 const sidebarScrim = document.getElementById("sidebarScrim");
 const menuBtn = document.getElementById("menuBtn");
@@ -147,9 +147,10 @@ const TELEMETRY = {
   tokens: "SYS · TOK-01 · OK", embeddings: "VEC · EMB-02 · OK",
   training: "TRN · GDES-03 · OK", attention: "ATT · HEAD-04 · OK",
   probabilities: "PRB · SAMP-05 · OK", journey: "TRF · LYR-06 · OK",
-  toymodel: "TOY · REAL-07 · OK", context: "CTX · MEM-08 · OK",
-  limits: "LIM · HALL-09 · WARN", playground: "LIVE · LLM-10 · OK",
-  scaling: "SCL · SCALE-11 · OK",
+  parsing: "PRS · PARSE-07 · OK",
+  toymodel: "TOY · REAL-08 · OK", context: "CTX · MEM-09 · OK",
+  limits: "LIM · HALL-10 · WARN", playground: "LIVE · LLM-11 · OK",
+  scaling: "SCL · SCALE-12 · OK",
 };
 for (const [id, text] of Object.entries(TELEMETRY)) {
   const section = document.getElementById(id);
@@ -492,7 +493,7 @@ function renderDebugExtra(final) {
       " tok/s (strictly one token at a time — that serial loop is why generation is the slow part)."],
     ["Context used", ctxLen + " of " + modelContextLength.toLocaleString() + " tokens (" +
       (modelContextLength ? (ctxLen / modelContextLength * 100).toFixed(2) : "?") +
-      "% of the window) — prompt template, your prompt and the answer so far. Lesson 8 is what happens when this fills up."],
+      "% of the window) — prompt template, your prompt and the answer so far. Lesson 9 is what happens when this fills up."],
     ["Why it stopped", "done_reason = “" + (final.done_reason || "?") + "”" +
       (final.done_reason === "length" ? " — it hit this page's 80-token cap mid-thought, not a natural end." :
        final.done_reason === "stop" ? " — the model emitted its end token: it decided it was finished." :
@@ -667,7 +668,7 @@ async function generate() {
 generateBtn.addEventListener("click", generate);
 stopBtn.addEventListener("click", () => { if (currentAbort) currentAbort.abort(); });
 
-/* ---------- Lesson 10: candidate towers in 3D (real logprobs) ---------- */
+/* ---------- Lesson 11: candidate towers in 3D (real logprobs) ---------- */
 async function initCandidate3D() {
   const box = document.getElementById("candidate3D");
   let THREE;
@@ -840,7 +841,7 @@ async function initCandidate3D() {
 }
 initCandidate3D();
 
-/* ---------- Lesson 10: live token journey through 16 layers in 3D ---------- */
+/* ---------- Lesson 11: live token journey through 16 layers in 3D ---------- */
 let journeyStart3D = null;
 let journeySetCandidates3D = null;
 
@@ -1078,7 +1079,7 @@ async function initJourneyLive3D() {
 }
 initJourneyLive3D();
 
-/* ---------- Lesson 11: small vs premium — log-scale towers in 3D ---------- */
+/* ---------- Lesson 12: small vs premium — log-scale towers in 3D ---------- */
 const SCALE_METRICS = {
   params: {
     small: 1.23e9, big: 2.5e11,
@@ -1093,7 +1094,7 @@ const SCALE_METRICS = {
   context: {
     small: 131072, big: 1000000,
     smallLabel: "131,072", bigLabel: "up to ~1M class",
-    note: "Context window (lesson 8's window size): yours holds 131,072 tokens — roughly a 300-page book. Premium products offer roughly 200k–1M tokens. Impressive, but notice this is the smallest gap on the chart: about 8×, not hundreds.",
+    note: "Context window (lesson 9's window size): yours holds 131,072 tokens — roughly a 300-page book. Premium products offer roughly 200k–1M tokens. Impressive, but notice this is the smallest gap on the chart: about 8×, not hundreds.",
   },
   compute: {
     small: 1, big: 200,
@@ -1471,7 +1472,7 @@ document.getElementById("trainResetBtn").addEventListener("click", () => {
 });
 drawTraining(0);
 
-/* ---------- Lesson 6: context window ---------- */
+/* ---------- Lesson 9: context window ---------- */
 const CTX_SIZE = 18;
 let ctxTokens = ["Hello,", "my", "name", "is", "Alex."];
 let ctxDropped = 0;
@@ -1516,7 +1517,7 @@ document.getElementById("ctxResetBtn").addEventListener("click", () => {
 });
 renderContext();
 
-/* ---------- Lesson 9: trap scoreboard — predict, run, auto-judge ---------- */
+/* ---------- Lesson 10: trap scoreboard — predict, run, auto-judge ---------- */
 const TRAP_NAMES = { letters: "Letter-count", citation: "Fake citation", maths: "Rushed maths" };
 let trapState = {};
 try { trapState = JSON.parse(localStorage.getItem("llmLabTraps") || "{}"); } catch (e) { trapState = {}; }
@@ -1569,8 +1570,8 @@ document.querySelectorAll(".trap-btn").forEach((btn) => {
     else location.hash = "playground";
     const st = trapState[key] || {};
     showError(st.pred
-      ? "Trap loaded in lesson 10 — prediction locked in. Press Generate."
-      : "Trap loaded in lesson 10 — next time, make a prediction in lesson 9 first. Press Generate.");
+      ? "Trap loaded in lesson 11 — prediction locked in. Press Generate."
+      : "Trap loaded in lesson 11 — next time, make a prediction in lesson 10 first. Press Generate.");
   });
 });
 
@@ -1605,7 +1606,7 @@ function judgePendingTrap(answerText) {
   renderTrapScore();
   showError("Trap judged: the model " +
     (result === "fall" ? "fell for it" : "got it right") +
-    " (" + TRAP_NAMES[key] + "). See your scoreboard in lesson 9.");
+    " (" + TRAP_NAMES[key] + "). See your scoreboard in lesson 10.");
 }
 renderTrapScore();
 
@@ -1788,7 +1789,144 @@ document.getElementById("journeyPlayBtn").addEventListener("click", () => {
 });
 renderJourney();
 
-/* ---------- Lesson 7: a real toy model (trained in the page) ---------- */
+/* ---------- Lesson 7: parsing — how your question is read ---------- */
+const PARSE_ROLES = {
+  asking: ["#e0a458", "asking word"],
+  subject: ["#7fb069", "subject — who/what it's about"],
+  action: ["#5da9c4", "action / verb"],
+  content: ["#b8b26a", "content word"],
+  negation: ["#d96a5f", "negation — flips meaning"],
+  constraint: ["#c98bb9", "format / constraint"],
+  other: ["#69707c", "glue word"],
+};
+const PARSE_PRESETS = [
+  {
+    words: ["How", "many", "letter", "r's", "are", "in", "the", "word", "strawberry?", "Answer", "with", "just", "the", "number."],
+    roles: ["asking", "asking", "content", "content", "action", "other", "other", "content", "content", "constraint", "other", "constraint", "other", "constraint"],
+    links: [[1, 8, "“how many” needs a target — it must find what is being counted"],
+      [3, 8, "the letters belong to this word"], [9, 13, "the reply format is constrained"]],
+    summary: "<strong>What it's asking:</strong> count something.<br>Target: the letter r inside “strawberry”. Constraint: reply with just the number.<br><strong>Where it goes wrong:</strong> the count target is a letter, but the model reads tokens, not letters (lesson 1) — this exact question is a trap in lesson 10.",
+  },
+  {
+    words: ["Why", "does", "the", "Moon", "not", "fall", "down?"],
+    roles: ["asking", "action", "other", "subject", "negation", "action", "other"],
+    links: [[4, 5, "“not” must find and cancel the falling"], [0, 5, "“why” asks for the cause of this (non-)event"], [3, 5, "subject of the action"]],
+    summary: "<strong>What it's asking:</strong> explain a cause.<br>Subject: the Moon. Event: falling — negated. So the real question is “what keeps it up?”, and a parse that drops the <em>not</em> answers the opposite question.",
+  },
+  {
+    words: ["Write", "a", "haiku", "about", "autumn", "leaves,", "but", "do", "not", "use", "the", "word", "fall."],
+    roles: ["action", "other", "constraint", "other", "content", "content", "other", "action", "negation", "action", "other", "content", "content"],
+    links: [[8, 9, "“not” cancels this action"], [2, 0, "the form the writing must take"], [4, 5, "the topic"], [12, 8, "the forbidden word is the negation's target"]],
+    summary: "<strong>What it's asking:</strong> create text, with two constraints.<br>Form: a haiku. Topic: autumn leaves. Forbidden: the word “fall” — awkward, because autumn writing reaches for it, and the model must police its own next-token picks (lesson 5) against a rule set here, at parse time.",
+  },
+  {
+    words: ["Time", "flies", "like", "an", "arrow."],
+    roles: ["subject", "action", "other", "other", "content"],
+    links: [[0, 1, "subject does this"], [1, 4, "compared with this"]],
+    summary: "<strong>What it's asking:</strong> nothing — it's a statement, in reading A: <em>time</em> (subject) <em>flies</em> (verb) like an arrow: time passes quickly.<br>Hold that parse and look at the next preset: identical shape, different reading. The model must bet on one — it cannot hold both.",
+  },
+  {
+    words: ["Fruit", "flies", "like", "a", "banana."],
+    roles: ["subject", "content", "action", "other", "content"],
+    links: [[0, 1, "these things"], [1, 2, "the insects do this"], [2, 4, "they enjoy this"]],
+    summary: "<strong>What it's asking:</strong> also a statement — but here <em>flies</em> is a noun (the insects), <em>like</em> is the verb, and <em>fruit</em> describes which flies.<br>Same five-slot shape as “Time flies…”, opposite roles for the same word. Context — one changed word — flips the parse. That flip is attention's job (lesson 4), and when it bets wrong, the answer is fluent nonsense about flying fruit.",
+  },
+];
+let parseStage = 1;
+let parseData = PARSE_PRESETS[0];
+
+function parseRoleOf(word, i, words) {
+  const w = word.toLowerCase().replace(/[^a-z']/g, "");
+  if (["how", "why", "what", "when", "where", "who", "which", "can", "could"].includes(w)) return "asking";
+  if (["not", "never", "no", "don't", "doesn't", "can't", "won't", "n't"].includes(w)) return "negation";
+  if (["just", "only", "haiku", "list", "number", "briefly", "sentence", "paragraph"].includes(w)) return "constraint";
+  if (["write", "give", "tell", "explain", "count", "describe", "name", "show", "make", "use", "fall", "falls", "flies", "like", "is", "are", "does", "do"].includes(w)) return "action";
+  if (["the", "a", "an", "in", "on", "of", "with", "about", "but", "and", "or", "to"].includes(w)) return "other";
+  return i <= 2 ? "subject" : "content";
+}
+function parseCustom(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const roles = words.map((w, i) => parseRoleOf(w, i, words));
+  const links = [];
+  const askIdx = roles.indexOf("asking");
+  const negIdx = roles.indexOf("negation");
+  const lastContent = roles.map((r, i) => [r, i]).filter(([r]) => r === "content" || r === "subject").pop();
+  if (askIdx >= 0 && lastContent) links.push([askIdx, lastContent[1], "the asking word must find its target"]);
+  if (negIdx >= 0) {
+    const verb = roles.findIndex((r, i) => i > negIdx && r === "action");
+    if (verb >= 0) links.push([negIdx, verb, "the negation must find what it cancels"]);
+  }
+  const type = askIdx >= 0 ? "a question (asking word: “" + words[askIdx] + "”)"
+    : roles.includes("action") ? "an instruction (it leads with an action word)" : "a statement";
+  return {
+    words, roles, links,
+    summary: "<strong>What it's asking:</strong> this looks like " + type + "." +
+      (negIdx >= 0 ? "<br>It contains a negation (“" + words[negIdx] + "”) — the single most dropped word in a bad parse." : "") +
+      "<br><em>Rough schematic parse from simple word rules — a real model's version is learned, layered, and never written down.</em>",
+  };
+}
+function renderParse() {
+  const legend = document.getElementById("parseLegend");
+  legend.innerHTML = "";
+  for (const [color, label] of Object.values(PARSE_ROLES)) {
+    const s = document.createElement("span");
+    s.className = "parse-legend-chip";
+    s.innerHTML = "<span class='parse-swatch'></span>";
+    s.querySelector(".parse-swatch").style.background = color;
+    s.appendChild(document.createTextNode(label));
+    legend.appendChild(s);
+  }
+  const box = document.getElementById("parseTokens");
+  box.innerHTML = "";
+  parseData.words.forEach((w, i) => {
+    const s = document.createElement("span");
+    s.className = "attn-token parse-word";
+    s.style.background = PARSE_ROLES[parseData.roles[i]][0];
+    s.textContent = w;
+    s.title = PARSE_ROLES[parseData.roles[i]][1];
+    box.appendChild(s);
+  });
+  const linksEl = document.getElementById("parseLinks");
+  linksEl.innerHTML = "";
+  if (parseStage >= 2) {
+    if (!parseData.links.length) {
+      linksEl.innerHTML = "<p class='hint'>No strong links found by the simple rules — try a preset.</p>";
+    }
+    for (const [from, to, label] of parseData.links) {
+      const row = document.createElement("div");
+      row.className = "attn-weight";
+      row.innerHTML = "<span></span><span class='bar-track'><span class='bar-fill'></span></span><span></span>";
+      row.children[0].textContent = parseData.words[from] + " → " + parseData.words[to];
+      row.querySelector(".bar-fill").style.width = "85%";
+      row.children[2].textContent = "";
+      const cap = document.createElement("p");
+      cap.className = "hint parse-link-label";
+      cap.textContent = label;
+      linksEl.appendChild(row);
+      linksEl.appendChild(cap);
+    }
+  }
+  const summary = document.getElementById("parseSummary");
+  summary.hidden = parseStage < 3;
+  if (parseStage >= 3) summary.innerHTML = parseData.summary;
+  document.querySelectorAll(".parse-stage-btn").forEach((b) =>
+    b.classList.toggle("active", Number(b.dataset.stage) === parseStage));
+}
+document.querySelectorAll(".parse-stage-btn").forEach((b) =>
+  b.addEventListener("click", () => { parseStage = Number(b.dataset.stage); renderParse(); }));
+document.getElementById("parseSelect").addEventListener("change", (e) => {
+  parseData = PARSE_PRESETS[Number(e.target.value)];
+  renderParse();
+});
+document.getElementById("parseCustomBtn").addEventListener("click", () => {
+  const text = document.getElementById("parseInput").value.trim();
+  if (!text) { showError("Type your own question first."); return; }
+  parseData = parseCustom(text);
+  renderParse();
+});
+renderParse();
+
+/* ---------- Lesson 8: a real toy model (trained in the page) ---------- */
 const TOY_DEFAULT_SENTENCES = [
   "the cat sat", "a cat sat", "the red cat sat", "the big cat sat",
   "the dog ran", "a dog ran", "the red dog ran", "the big dog ran",
@@ -2214,11 +2352,12 @@ initToy3D();
 
 /* ---------- Course progress, next-lesson flow, checkpoint quizzes ---------- */
 const LESSON_ORDER = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "toymodel", "context", "limits", "playground", "scaling"];
+  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
 const LESSON_TITLES = {
   tokens: "Tokens", embeddings: "Embeddings", training: "Training", attention: "Attention",
-  probabilities: "Next token", journey: "Inside the model", toymodel: "Toy model 3D",
-  context: "Context", limits: "Limits", playground: "Live model", scaling: "Small vs premium",
+  probabilities: "Next token", journey: "Inside the model", parsing: "Parsing a question",
+  toymodel: "Toy model 3D", context: "Context", limits: "Limits",
+  playground: "Live model", scaling: "Small vs premium",
 };
 let completedLessons = new Set();
 try {
@@ -2281,6 +2420,10 @@ const QUIZZES = {
   journey: [
     { q: "Which layers does a token pass through?", opts: ["Only the ones it needs", "Every layer, in order", "One random layer"], a: 1, why: "All tokens traverse the full stack; attention and MLP rewrite each one per layer." },
     { q: "What comes out of the final layer?", opts: ["A finished sentence", "Scores for the next token", "A picture"], a: 1, why: "The final representation becomes next-token probabilities." },
+  ],
+  parsing: [
+    { q: "Inside the model, the grammar rules live in…", opts: ["A built-in dictionary of nouns and verbs", "Nowhere — parsing emerges from attention and layers", "The tokenizer"], a: 1, why: "No symbolic parser exists; structure is built by the same mechanisms from lessons 4 and 6." },
+    { q: "“Fruit flies like a banana” is dangerous for a model because…", opts: ["Bananas are rare in training data", "The same word shape needs the opposite parse, and it must bet on one", "It contains a negation"], a: 1, why: "Two valid parses, one winner — a wrong bet upstream becomes a fluent wrong answer." },
   ],
   toymodel: [
     { q: "After training, why does “cat” predict “sat” so strongly?", opts: ["It's programmed in", "Its sentences always pair cat with sat", "Cats sit in real life"], a: 1, why: "The model only knows patterns from its training sentences." },

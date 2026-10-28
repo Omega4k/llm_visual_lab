@@ -32,7 +32,7 @@ document.getElementById("f").addEventListener("load", async () => {
   }
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
   const VIEWS = ["tokens", "embeddings", "training", "attention", "probabilities",
-    "journey", "toymodel", "context", "limits", "playground", "scaling"];
+    "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
   const expectedAdds = { beginner: [], medium: ["m"], expert: ["m", "e"] };
 
   for (const id of VIEWS) {
@@ -107,6 +107,21 @@ document.getElementById("f").addEventListener("load", async () => {
   check("journey: sharpening chart explains itself",
     doc.getElementById("sharpNote").textContent.includes("layer 0") &&
     doc.getElementById("sharpNote").textContent.includes("layer 15"));
+  doc.querySelector('.lesson-nav a[href="#parsing"]').click();
+  check("parsing: word-role chips rendered",
+    doc.querySelectorAll("#parseTokens .parse-word").length >= 10);
+  doc.querySelector('[data-stage="2"]').click();
+  check("parsing: stage 2 reveals links",
+    doc.querySelectorAll("#parseLinks .attn-weight").length >= 2);
+  doc.querySelector('[data-stage="3"]').click();
+  check("parsing: stage 3 reveals the interpreted request",
+    !doc.getElementById("parseSummary").hidden &&
+    doc.getElementById("parseSummary").textContent.includes("count"));
+  doc.getElementById("parseSelect").value = "4";
+  doc.getElementById("parseSelect").dispatchEvent(new win.Event("change"));
+  check("parsing: ambiguity preset changes the summary",
+    doc.getElementById("parseSummary").textContent.includes("flies"));
+  doc.querySelector('[data-stage="1"]').click();
   doc.querySelector('.lesson-nav a[href="#context"]').click();
   doc.getElementById("ctxAddBtn").click();
   doc.getElementById("ctxAddBtn").click();

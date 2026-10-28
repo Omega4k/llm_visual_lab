@@ -128,6 +128,13 @@ textarea:focus { outline: 2px solid var(--accent-dark); }
 .echo-tok { border-radius: 3px; padding: 0.08rem 0.05rem; color: #14181d; }
 .echo-tok.linked, .token.linked { outline: 2px solid var(--text); outline-offset: 1px; }
 .sharp-canvas { width: 100%; height: auto; background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 8px; }
+.parse-stage-btn { background: var(--control); color: var(--text); font-weight: 500; }
+.parse-stage-btn.active { background: var(--accent); color: #1a1408; font-weight: 700; }
+.parse-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0.8rem 0; font-size: 0.85rem; color: var(--muted); }
+.parse-legend-chip { display: inline-flex; align-items: center; gap: 0.35rem; }
+.parse-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.parse-word { color: #14181d; font-weight: 600; cursor: default; }
+.parse-link-label { margin: 0.1rem 0 0.5rem; }
 .scale-btn { background: var(--control); color: var(--text); font-weight: 500; }
 .scale-btn:hover { background: var(--control-hover); }
 .scale-btn.active { background: var(--accent); color: #1a1408; font-weight: 700; }

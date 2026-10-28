@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=12">
+<link rel="stylesheet" href="styles.css?v=13">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -37,13 +37,14 @@
     <a href="#attention">4 · Attention</a>
     <a href="#probabilities">5 · Next token</a>
     <a href="#journey">6 · Inside the model</a>
-    <a href="#toymodel">7 · Toy model 3D</a>
-    <a href="#context">8 · Context</a>
-    <a href="#limits">9 · Limits</a>
-    <a href="#playground">10 · Live model</a>
-    <a href="#scaling">11 · Small vs premium</a>
+    <a href="#parsing">7 · Parsing a question</a>
+    <a href="#toymodel">8 · Toy model 3D</a>
+    <a href="#context">9 · Context</a>
+    <a href="#limits">10 · Limits</a>
+    <a href="#playground">11 · Live model</a>
+    <a href="#scaling">12 · Small vs premium</a>
   </nav>
-  <div class="sidebar-progress"><span id="progressLabel">Progress 0/10</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
+  <div class="sidebar-progress"><span id="progressLabel">Progress 0/12</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
   <div class="sidebar-settings">
     <p class="sidebar-title">Settings</p>
     <div class="level-switch" role="group" aria-label="Knowledge level">
@@ -63,7 +64,7 @@
         <option value="rose">Rose</option>
       </select>
     </label>
-    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/10</span></button>
+    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/12</span></button>
   </div>
 </aside>
 
@@ -77,7 +78,7 @@
     <p>One idea carries the whole course: <strong>a language model is a prediction machine,
     not a database.</strong> It doesn't look answers up; it guesses what comes next, one
     small piece at a time, astonishingly well. Everything else — the cleverness, the
-    mistakes, the confident made-up facts in lesson 9 — follows from that. And it all
+    mistakes, the confident made-up facts in lesson 10 — follows from that. And it all
     starts with how the model reads, because it doesn't read the way you do.</p>
     <p>A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</p>
     <label for="tokenInput">Your text</label>
@@ -149,7 +150,7 @@
       1 · Guess: the model outputs probabilities <span class="mono">p</span> for the next token.<br>
       2 · Measure: <span class="mono">loss = −log p(correct token)</span> — huge when it was confidently wrong, near zero when right.<br>
       3 · Blame: each weight gets a gradient <span class="mono">∂loss/∂w</span> — its personal share of the blame (the chain rule carries the error backwards, layer by layer: “backpropagation”).<br>
-      4 · Nudge: <span class="mono">w ← w − η · ∂loss/∂w</span>, with learning rate <span class="mono">η</span> small (the toy model in lesson 7 uses η = 0.4) so it improves instead of jumping past the answer.<br>
+      4 · Nudge: <span class="mono">w ← w − η · ∂loss/∂w</span>, with learning rate <span class="mono">η</span> small (the toy model in lesson 8 uses η = 0.4) so it improves instead of jumping past the answer.<br>
       Repeat billions of times and the loss landscape is slowly descended — like walking downhill in fog, always stepping along the steepest downward slope you can feel underfoot.
     </div>
     <p class="note">Toy model, real principle. The real thing trains on trillions of tokens for weeks
@@ -259,8 +260,49 @@
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>A forward pass is a residual stream: x<sub>l+1</sub> = x<sub>l</sub> + Attn(x<sub>l</sub>) + MLP(x<sub>l</sub> + Attn), per layer, with all positions processed in parallel. Early layers mostly encode position and syntax, middle layers resolve reference, and late layers align the stream with the unembedding so the final logits favour the answer. The bars above show 16 of the thousands of numbers in that stream.</p>
   </section>
 
+  <section id="parsing" class="panel">
+    <h2>7 · Parsing — how your question is read</h2>
+    <p>When you type a question, the model has to work out what you're asking before it can
+    answer — but nobody gave it a grammar book. There is no dictionary of nouns and verbs
+    inside, and no code that draws sentence diagrams. The reading comprehension you've
+    seen building up — tokens (lesson 1), attention links (lesson 4), layers specialising
+    (lesson 6) — <em>is</em> the parser. Understanding assembles itself, layer by layer.
+    Work through the three stages below and watch a question get taken apart.</p>
+    <div class="controls">
+      <label>Question
+        <select id="parseSelect">
+          <option value="0">How many letter r's are in the word strawberry? Answer with just the number.</option>
+          <option value="1">Why does the Moon not fall down?</option>
+          <option value="2">Write a haiku about autumn leaves, but do not use the word fall.</option>
+          <option value="3">Time flies like an arrow.</option>
+          <option value="4">Fruit flies like a banana.</option>
+        </select>
+      </label>
+    </div>
+    <label for="parseInput">…or your own question</label>
+    <textarea id="parseInput" rows="2" placeholder="Type a question and press “Parse mine”"></textarea>
+    <div class="controls">
+      <button type="button" id="parseCustomBtn">Parse mine</button>
+      <span class="hint">Custom questions get a rough schematic parse — the presets are hand-annotated.</span>
+    </div>
+    <div class="controls parse-stages" role="group" aria-label="Parse stage">
+      <button type="button" class="parse-stage-btn active" data-stage="1">1 · Word roles</button>
+      <button type="button" class="parse-stage-btn" data-stage="2">2 · Links</button>
+      <button type="button" class="parse-stage-btn" data-stage="3">3 · What it's asking</button>
+    </div>
+    <div class="parse-legend" id="parseLegend"></div>
+    <div class="attn-tokens parse-tokens" id="parseTokens"></div>
+    <div class="attn-weights" id="parseLinks"></div>
+    <div class="math-box" id="parseSummary" hidden></div>
+    <p class="note">Schematic teaching annotations — the colours and links show the kind of
+    structure attention has to build, not a readout of the real model's insides (it exposes
+    none). Preset questions are annotated by hand; your own text gets simple word rules.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Three things happen in sequence. Early layers settle surface structure — word order, which words group together. Middle layers wire the pointers: an asking-word like <em>how many</em> must find the thing being counted, a <em>not</em> must find the verb it cancels (the second preset is a trap of exactly this kind). Late layers hold the result as a working interpretation the answer is generated from. The invisible template tokens around your question (lesson 11's debug strip) also get parsed: the model distinguishes “the human is asking” from “text to continue”.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>What linguists call parsing — constituency, dependency structure, semantic roles — shows up in probes of the residual stream: syntactic tree depth and dependency relations are linearly decodable from middle-layer representations, and individual attention heads track relations like subject→verb and pronoun→antecedent. None of it is symbolic: there is no tree data structure, only vectors that behave <em>as if</em> a tree were computed, well enough that next-token loss falls. Ambiguity is therefore a bet, not a lookup — with two valid parses, probability mass follows the training distribution, and the loser is simply never represented. That is why a misread question gets a fluent, confident, wrong answer: generation is faithful to the parse, and the parse was the error.</p>
+  </section>
+
   <section id="toymodel" class="panel">
-    <h2>7 · A real toy model — watch it think in 3D</h2>
+    <h2>8 · A real toy model — watch it think in 3D</h2>
     <p>This lesson is a <strong>real</strong> tiny model, not a drawing. It learns from a few short sentences, right here in your browser. Train it, then give it a word and watch the glowing route show how it picks the next word.</p>
     <div class="controls">
       <button id="toyTrainBtn" type="button">Train the toy model</button>
@@ -303,11 +345,11 @@
     its tiny world. You are watching lesson 3 (training) create lesson 5 (prediction),
     with nothing hidden.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Inside, each word goes in as numbers, passes through two hidden layers of 16 and 12 nodes, and comes out as probabilities for the next word. Node size and brightness in the 3D view above are real activations, and the amber lines trace the strongest connections behind the prediction — nothing is staged.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>The network, exactly: one-hot input → 16 tanh units → 12 tanh units → softmax over a 12-word vocabulary, trained by SGD on next-word pairs. Unlike the Llama in lesson 10, every weight and activation lives in this page, so the amber route can show the largest |h·W| contributions to the winning logit. It is an MLP, not a transformer — no attention — which is what makes total inspection possible.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>The network, exactly: one-hot input → 16 tanh units → 12 tanh units → softmax over a 12-word vocabulary, trained by SGD on next-word pairs. Unlike the Llama in lesson 11, every weight and activation lives in this page, so the amber route can show the largest |h·W| contributions to the winning logit. It is an MLP, not a transformer — no attention — which is what makes total inspection possible.</p>
   </section>
 
   <section id="context" class="panel">
-    <h2>8 · Context — why it forgets</h2>
+    <h2>9 · Context — why it forgets</h2>
     <p>The model can only remember a limited amount of your conversation. When too much has been said, the oldest words fall away and are forgotten — it can't miss them, because for the model they no longer exist. Add sentences and watch the beginning disappear.</p>
     <div class="ctx-window" id="ctxWindow" aria-live="polite"></div>
     <p class="stats"><span id="ctxCount">0</span> / 18 tokens in window · <span id="ctxDropped">0</span> tokens forgotten</p>
@@ -328,7 +370,7 @@
   </section>
 
   <section id="limits" class="panel">
-    <h2>9 · Limits — confident, plausible, wrong</h2>
+    <h2>10 · Limits — confident, plausible, wrong</h2>
     <p>The model tries to say things that <em>sound</em> right — which is not the same as <em>being</em> right. When it doesn't know, it often makes things up, confidently. Each button below loads a trap question into the live model; guess what will happen before you run it.</p>
     <div class="controls trap-row">
       <button type="button" class="trap-btn" data-trap="letters" data-prompt="How many letter r's are in the word strawberry? Answer with just the number.">The letter-count trap</button>
@@ -336,7 +378,7 @@
       <button type="button" class="trap-btn" data-trap="maths" data-prompt="A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Explain step by step.">The rushed-maths trap</button>
     </div>
     <h3>Trap scoreboard — call it before you run it</h3>
-    <p class="hint">For each trap: make your prediction, then run the trap in lesson 10. When the
+    <p class="hint">For each trap: make your prediction, then run the trap in lesson 11. When the
     answer finishes, the result is auto-judged here (a heuristic — check the answer yourself too).</p>
     <div class="trap-score" id="trapScore">
       <div class="trap-score-row" data-trap-row="letters">
@@ -370,12 +412,12 @@
     citations are easy to imitate without existing; and the maths answer that “sounds right”
     (10 cents) out-competes the correct one (5 cents) unless the model slows down.
     Bigger models fall for these less — none are immune.</p>
-    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>The reason is in the training: it optimises for plausible text, not verified truth. With no fact database and no self-check, gaps get filled fluently — that failure mode is called <strong>hallucination</strong>. Small models do it constantly; watch for it when the traps run in lesson 10.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>The reason is in the training: it optimises for plausible text, not verified truth. With no fact database and no self-check, gaps get filled fluently — that failure mode is called <strong>hallucination</strong>. Small models do it constantly; watch for it when the traps run in lesson 11.</p>
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>The objective is likelihood, not truth: nothing in next-token training grounds a claim, and decoding will happily continue a false premise in perfect style. Expect fabricated citations, tokenisation-driven counting failures, and high-probability wrong answers (the 10¢ bat-and-ball lure). Larger models reduce all three — they eliminate none.</p>
   </section>
 
   <section id="playground" class="panel">
-    <h2>10 · Live model — everything at once</h2>
+    <h2>11 · Live model — everything at once</h2>
     <p>Now the real thing: a small AI model running on your own computer. Type something, press Generate, and watch it write — one small piece at a time, always guessing what comes next. Nothing you type leaves this machine.</p>
     <label for="promptInput">Prompt</label>
     <textarea id="promptInput" rows="3">The capital of France is</textarea>
@@ -424,7 +466,7 @@
   </section>
 
   <section id="scaling" class="panel">
-    <h2>11 · Small vs premium — why scale makes it smarter</h2>
+    <h2>12 · Small vs premium — why scale makes it smarter</h2>
     <p>Everything you have done so far used a model with about a billion knobs, running on
     your own computer. Premium models — the big hosted ones, like muse-wonder — work exactly
     the same way: tokens in, embeddings, attention, next-token probabilities out. There is
@@ -470,9 +512,9 @@
 </div><!-- /.layout -->
 
 <footer>
-  <p>LLM Visual Lab — a local learning tool. Lessons 1–6 are schematic teaching models,
-  lesson 7 is a real (tiny) trained model, lesson 10 uses the real local Llama,
-  and lesson 11 compares it with premium models (premium figures are labelled estimates).</p>
+  <p>LLM Visual Lab — a local learning tool. Lessons 1–7 are schematic teaching models,
+  lesson 8 is a real (tiny) trained model, lesson 11 uses the real local Llama,
+  and lesson 12 compares it with premium models (premium figures are labelled estimates).</p>
 </footer>
 
 <div class="quiz-scrim" id="quizScrim" hidden></div>
@@ -486,6 +528,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=12"></script>
+<script type="module" src="app.js?v=13"></script>
 </body>
 </html>

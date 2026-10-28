@@ -2587,11 +2587,35 @@ document.getElementById("realTokBtn").addEventListener("click", async () => {
 });
 
 /* ---------- Lesson 3b: loss landscape — gradient descent in 3D ---------- */
-const lossFn = (x, y) => 0.6 * x * x + 0.25 * y * y + 0.35 * Math.sin(x) * Math.cos(y) + 0.35;
-const lossGrad = (x, y) => [
-  1.2 * x + 0.35 * Math.cos(x) * Math.cos(y),
-  0.5 * y - 0.35 * Math.sin(x) * Math.sin(y),
+/* A gentle bowl minus three Gaussian wells: three real local minima, the
+   east one deepest. Minima (found numerically): west (-1.68, 1.15) L=1.43,
+   south (0.19, -1.51) L=1.36, global (1.76, 0.79) L=0.83. */
+const LOSS_WELLS = [
+  [-1.9, 1.3, 2.6, 0.85],
+  [0.2, -1.7, 2.2, 0.75],
+  [2.0, 0.9, 3.1, 0.95],
 ];
+const LOSS_MINIMA = [
+  { name: "west dip — a LOCAL minimum", w: [-1.682, 1.152], loss: 1.43 },
+  { name: "south dip — a LOCAL minimum", w: [0.188, -1.510], loss: 1.36 },
+  { name: "east dip — the GLOBAL minimum", w: [1.764, 0.793], loss: 0.83 },
+];
+function lossFn(x, y) {
+  let v = 0.22 * (x * x + y * y) + 3;
+  for (const [a, b, d, s] of LOSS_WELLS) {
+    v -= d * Math.exp(-((x - a) ** 2 + (y - b) ** 2) / (2 * s * s));
+  }
+  return v;
+}
+function lossGrad(x, y) {
+  let gx = 0.44 * x, gy = 0.44 * y;
+  for (const [a, b, d, s] of LOSS_WELLS) {
+    const e = d * Math.exp(-((x - a) ** 2 + (y - b) ** 2) / (2 * s * s));
+    gx += e * (x - a) / (s * s);
+    gy += e * (y - b) / (s * s);
+  }
+  return [gx, gy];
+}
 const lossState = { w: [-2.4, 2.0], steps: 0, timer: null };
 let lossUpdate3D = null;
 
@@ -2601,6 +2625,7 @@ function lossRenderMath(prevW, grad, lr) {
     "Step " + lossState.steps + ":\n" +
     "position w = (" + x.toFixed(3) + ", " + y.toFixed(3) + ")   loss L(w) = " + lossFn(x, y).toFixed(3) + "\n" +
     (prevW ? "gradient ∇L = (" + grad[0].toFixed(3) + ", " + grad[1].toFixed(3) + ")" +
+      "   |∇L| = " + Math.hypot(grad[0], grad[1]).toFixed(3) +
       "   →   step = −η·∇L = (" + (-lr * grad[0]).toFixed(3) + ", " + (-lr * grad[1]).toFixed(3) + ")\n" +
       "w_new = (" + prevW[0].toFixed(3) + ", " + prevW[1].toFixed(3) + ") − η·∇L = (" +
       x.toFixed(3) + ", " + y.toFixed(3) + ")" +
@@ -2625,8 +2650,17 @@ function lossStep() {
   if (lossUpdate3D) lossUpdate3D(false);
   const g = lossGrad(lossState.w[0], lossState.w[1]);
   if (Math.hypot(g[0], g[1]) < 0.03) {
+    const near = LOSS_MINIMA.reduce((best, m) => {
+      const d = Math.hypot(lossState.w[0] - m.w[0], lossState.w[1] - m.w[1]);
+      return !best || d < best.d ? { m, d } : best;
+    }, null);
     document.getElementById("lossMath").textContent +=
-      "\nGradient ≈ 0 — the ball has reached the valley floor. That is convergence.";
+      "\nGradient ≈ 0 — convergence. The ball settled in the " +
+      (near && near.d < 0.4 ? near.m.name + " (loss ≈ " + near.m.loss + ")."
+        : "valley floor.") +
+      (near && near.d < 0.4 && near.m.loss > 0.9
+        ? " It feels exactly like success from down here — only the map (which the ball doesn't have) shows the east dip is deeper. Start from the North ridge to find it."
+        : "");
     lossStopAuto();
     sndDone();
   }
@@ -2653,6 +2687,15 @@ document.getElementById("lossResetBtn").addEventListener("click", () => {
   lossState.steps = 0;
   lossRenderMath(null, null, 0);
   if (lossUpdate3D) lossUpdate3D(true);
+});
+document.querySelectorAll("[data-loss-start]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    lossStopAuto();
+    lossState.w = btn.dataset.lossStart.split(",").map(Number);
+    lossState.steps = 0;
+    lossRenderMath(null, null, 0);
+    if (lossUpdate3D) lossUpdate3D(true);
+  });
 });
 
 async function initLoss3D() {

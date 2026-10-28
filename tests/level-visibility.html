@@ -107,6 +107,21 @@ document.getElementById("f").addEventListener("load", async () => {
   check("journey: sharpening chart explains itself",
     doc.getElementById("sharpNote").textContent.includes("layer 0") &&
     doc.getElementById("sharpNote").textContent.includes("layer 15"));
+  doc.querySelector('.lesson-nav a[href="#training"]').click();
+  const stepToBottom = () => {
+    for (let i = 0; i < 90; i++) {
+      doc.getElementById("lossStepBtn").click();
+      if (doc.getElementById("lossMath").textContent.includes("convergence")) break;
+    }
+    return doc.getElementById("lossMath").textContent;
+  };
+  doc.querySelector('[data-loss-start="-2.4,2.0"]').click();
+  check("training: west start converges to the west LOCAL dip",
+    stepToBottom().includes("west dip"));
+  doc.querySelector('[data-loss-start="0.2,2.6"]').click();
+  check("training: north start converges to the GLOBAL dip",
+    stepToBottom().includes("GLOBAL minimum"));
+  doc.getElementById("lossResetBtn").click();
   doc.querySelector('.lesson-nav a[href="#parsing"]').click();
   check("parsing: word-role chips rendered",
     doc.querySelectorAll("#parseTokens .parse-word").length >= 10);

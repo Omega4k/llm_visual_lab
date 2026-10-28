@@ -125,7 +125,12 @@ document.getElementById("f").addEventListener("load", async () => {
   check("limits: scoreboard resets",
     !predBtn.classList.contains("active") &&
     doc.getElementById("trapTally").textContent.includes("0 of 0"));
-  doc.querySelector('.lesson-nav a[href="#scaling"]').click();
+  const scaleLink = doc.querySelector('.lesson-nav a[href="#scaling"]');
+  scaleLink.scrollIntoView();
+  const lr = scaleLink.getBoundingClientRect();
+  check("scaling: sidebar link is actually hit-testable (not covered/clipped)",
+    doc.elementFromPoint(lr.left + lr.width / 2, lr.top + lr.height / 2) === scaleLink);
+  scaleLink.click();
   check("scaling: comparison table present",
     doc.querySelectorAll("#scaling .compare-table tbody tr").length >= 6);
   const noteBefore = doc.getElementById("scaleNote").textContent;

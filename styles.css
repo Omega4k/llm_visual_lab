@@ -52,14 +52,24 @@ main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
 .layout main { margin: 0 auto; width: 100%; }
 .sidebar {
   position: sticky; top: 1rem; padding: 1.2rem 0.6rem 1.2rem 2rem;
-  max-height: calc(100vh - 2rem); overflow-y: auto;
+  max-height: calc(100vh - 2rem);
+  display: flex; flex-direction: column;
 }
 .sidebar-title {
   font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); margin: 0 0 0.6rem;
 }
-.sidebar .lesson-nav { flex-direction: column; flex-wrap: nowrap; padding: 0; gap: 0.4rem; }
-.sidebar .lesson-nav a { display: block; border-radius: 8px; }
+/* The lesson list scrolls in its own clearly-bounded region (all 11 lessons
+   must stay reachable); progress and settings below it never move away. */
+.sidebar .lesson-nav {
+  flex-direction: column; flex-wrap: nowrap; padding: 0 0.3rem 0.3rem 0; gap: 0.35rem;
+  overflow-y: auto; min-height: 0; flex: 1 1 auto;
+  scrollbar-width: thin; scrollbar-color: var(--accent-dark) transparent;
+}
+.sidebar .lesson-nav::-webkit-scrollbar { width: 6px; }
+.sidebar .lesson-nav::-webkit-scrollbar-thumb { background: var(--accent-dark); border-radius: 3px; }
+.sidebar .lesson-nav a { display: block; border-radius: 8px; padding-top: 0.3rem; padding-bottom: 0.3rem; flex: none; }
+.sidebar-progress, .sidebar-settings { flex: none; }
 .sidebar .lesson-nav a.active {
   border-color: var(--accent); font-weight: 700;
   box-shadow: inset 0 0 0 1px var(--accent);

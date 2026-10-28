@@ -308,6 +308,19 @@ body.level-beginner .lvl-b { display: inline; }
 body.level-medium .lvl-m { display: inline; }
 body.level-expert .lvl-e { display: inline; }
 body.level-beginner .depth-m { display: none; }
+/* Additive level text (pilot in lessons 1 & 5): the base paragraph never
+   changes; higher levels only reveal extra blocks below it. */
+.lvl-add { display: none; background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 8px; padding: 0.7rem 1rem; }
+body.level-medium .lvl-add-m { display: block; }
+body.level-expert .lvl-add-m, body.level-expert .lvl-add-e { display: block; }
+.lvl-add-tag {
+  display: inline-block; font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+  color: var(--accent); background: var(--control); border-radius: 4px;
+  padding: 0.1rem 0.45rem; margin-right: 0.5rem; vertical-align: 0.08em;
+}
+.lvl-add.lvl-new { animation: lvl-new 2.4s ease-out; }
+@keyframes lvl-new { 0% { background: var(--accent-dark); } 100% { background: var(--inset); } }
+@media (prefers-reduced-motion: reduce) { .lvl-add.lvl-new { animation: none; } }
 #soundBtn { background: #3a434f; color: var(--text); padding: 0.3rem 0.7rem; font-size: 0.85rem; }
 #soundBtn[aria-pressed="true"] { background: var(--accent); color: #1a1408; }
 .gauge {

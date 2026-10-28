@@ -14,15 +14,33 @@ function showError(msg) {
 window.addEventListener("error", (e) => showError("Something went wrong: " + e.message));
 
 /* ---------- Knowledge level (beginner / medium / expert) ---------- */
-function setLevel(level) {
+const LEVEL_RANK = { beginner: 0, medium: 1, expert: 2 };
+let currentLevel = "beginner";
+function setLevel(level, flashNew) {
+  const prevRank = LEVEL_RANK[currentLevel];
+  const newRank = LEVEL_RANK[level];
+  currentLevel = level;
   document.body.classList.remove("level-beginner", "level-medium", "level-expert");
   document.body.classList.add("level-" + level);
   document.querySelectorAll(".level-btn").forEach((btn) =>
     btn.classList.toggle("active", btn.dataset.setLevel === level));
   try { localStorage.setItem("llmLabLevel", level); } catch (e) { /* private mode */ }
+  // Pilot (lessons 1 & 5): briefly highlight blocks this switch just revealed,
+  // so levelling up means reading only the new text, not the lesson again.
+  if (flashNew && newRank > prevRank) {
+    document.querySelectorAll(".lvl-add").forEach((el) => {
+      const rank = el.classList.contains("lvl-add-e") ? 2 : 1;
+      if (rank > prevRank && rank <= newRank) {
+        el.classList.remove("lvl-new");
+        void el.offsetWidth; // restart the animation if already highlighted
+        el.classList.add("lvl-new");
+        setTimeout(() => el.classList.remove("lvl-new"), 2600);
+      }
+    });
+  }
 }
 document.querySelectorAll(".level-btn").forEach((btn) =>
-  btn.addEventListener("click", () => setLevel(btn.dataset.setLevel)));
+  btn.addEventListener("click", () => setLevel(btn.dataset.setLevel, true)));
 try {
   const saved = localStorage.getItem("llmLabLevel");
   if (saved && ["beginner", "medium", "expert"].includes(saved)) setLevel(saved);

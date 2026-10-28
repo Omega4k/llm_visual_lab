@@ -85,6 +85,12 @@ document.getElementById("f").addEventListener("load", async () => {
   check("level/sound/theme/quiz controls are inside the sidebar",
     ["[data-set-level='expert']", "#soundBtn", "#themeSelect", "#quizOpenBtn"]
       .every((sel) => sidebarEl.contains(doc.querySelector(sel))));
+  check("every sidebar lesson button fits on one line",
+    [...doc.querySelectorAll(".lesson-nav a")].every((a) => {
+      const r = doc.createRange();
+      r.selectNodeContents(a);
+      return [...r.getClientRects()].length <= 1 && a.scrollWidth <= a.clientWidth + 1;
+    }));
   const lvlBtns = [...doc.querySelectorAll(".level-btns .level-btn")];
   check("level buttons form one group on a single row",
     lvlBtns.length === 3 &&

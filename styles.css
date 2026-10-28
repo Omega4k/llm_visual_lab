@@ -74,7 +74,10 @@ main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
 }
 .sidebar .lesson-nav::-webkit-scrollbar { width: 6px; }
 .sidebar .lesson-nav::-webkit-scrollbar-thumb { background: var(--accent-dark); border-radius: 3px; }
-.sidebar .lesson-nav a { display: block; border-radius: 8px; padding-top: 0.3rem; padding-bottom: 0.3rem; flex: none; }
+.sidebar .lesson-nav a {
+  display: block; border-radius: 8px; flex: none;
+  padding: 0.3rem 0.55rem; font-size: 0.87rem; white-space: nowrap;
+}
 .sidebar-progress, .sidebar-settings { flex: none; }
 .sidebar-group {
   font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;

@@ -51,7 +51,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 
 ## Features
 
-- Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound. Pilot: lessons 1 and 5 are additive — the base text never changes, higher levels only reveal tagged “goes deeper” blocks (highlighted briefly on level-up); the other lessons still swap text per level
+- Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound. Pilot: lessons 1 and 5 are additive — the base text never changes, higher levels only reveal tagged “goes deeper” blocks at the end of the lesson (highlighted briefly on level-up); the other lessons still swap text per level
 - Progress tracking, saved locally; checkpoint quizzes (2 questions per lesson) live in a slide-in Quiz drawer (button in the top bar), separate from the lessons
 - "Mark complete" plus a Next-lesson button on every lesson
 - Lesson 1 compares the teaching splitter with a real BPE tokenizer (GPT-2 family,
@@ -59,7 +59,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 - Lesson 7 can be retrained on your own sentences (vocabulary rebuilds from your words)
 - Lesson 3 has a 3D loss landscape: a ball descends by real gradient descent with a learning-rate slider (crawl, settle, or overshoot the valley)
 - Lesson 10 uses real Ollama debug data: per-token logprobs with clickable tokens, 3D candidate towers, a model-facts card (`/api/show`), server-measured tok/s, and the full context token-ID strip (template tokens included)
-- Top-of-page showcase: a live token journey — your prompt's tokens rise through a 16-layer 3D stack while the real model generates, ending in real next-token candidate towers (layer pass is a labelled schematic replay; tokens, output and probabilities are real)
+- Closing showcase, after lesson 10: a live token journey — your prompt's tokens rise through a 16-layer 3D stack while the real model generates, ending in real next-token candidate towers (layer pass is a labelled schematic replay; tokens, output and probabilities are real)
 
 ## Roadmap
 

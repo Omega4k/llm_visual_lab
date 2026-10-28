@@ -309,7 +309,7 @@ body.level-medium .lvl-m { display: inline; }
 body.level-expert .lvl-e { display: inline; }
 body.level-beginner .depth-m { display: none; }
 /* Additive level text (pilot in lessons 1 & 5): the base paragraph never
-   changes; higher levels only reveal extra blocks below it. */
+   changes; higher levels only reveal extra blocks at the end of the lesson. */
 .lvl-add { display: none; background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 8px; padding: 0.7rem 1rem; }
 body.level-medium .lvl-add-m { display: block; }
 body.level-expert .lvl-add-m, body.level-expert .lvl-add-e { display: block; }

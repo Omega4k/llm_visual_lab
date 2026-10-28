@@ -58,25 +58,9 @@
 </div>
 
 <main>
-  <section id="showcase" class="panel">
-    <h2>★ Live journey — your words through the real model</h2>
-    <p><span class="lvl lvl-b">The showpiece: type anything, press the button, and watch your words travel up through the model's layers as glowing tokens — then see what it predicts next, with the real choices it weighed up, as towers on the right. It talks to the small Llama model running on your own computer.</span><span class="lvl lvl-m">Your prompt is split into tokens, each token is animated rising through the 16 transformer layers of llama3.2:1b, and the towers on the right show the real top-5 next-token candidates (real logprobs) for the first generated token. The stream below is the real answer continuing.</span><span class="lvl lvl-e">Honesty note: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation shown, the 16-layer count (real for llama3.2:1b via <span class="mono">/api/show</span>), the streamed output, and the candidate probabilities (<span class="mono">exp(logprob)</span>) are real. Full per-token analysis lives in lesson 10.</span></p>
-    <label for="journeyPrompt">Your prompt</label>
-    <textarea id="journeyPrompt" rows="2">The capital of France is</textarea>
-    <div class="controls">
-      <button id="journeyBtn" type="button">Send it through the model</button>
-      <span class="stats" id="journeyStatus">Idle — waiting for a prompt.</span>
-    </div>
-    <div id="journeyLive3D" class="canvas-box"></div>
-    <p class="gauge-label">Token journey — drag to orbit · scroll to zoom · left: your tokens rising through 16 layers · right: real next-token candidates</p>
-    <div class="output" id="journeyOut" aria-live="polite"></div>
-  </section>
-
   <section id="tokens" class="panel">
     <h2>1 · Tokens — how the model reads</h2>
     <p><span class="lvl lvl-b">A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</span></p>
-    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Those chunks come from a fixed vocabulary, produced by a <strong>tokenizer</strong> before the model itself sees anything. Spaces and punctuation count as parts of tokens too — try adding punctuation, a capital, or an extra space below and watch the count change.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>More precisely, the splitting rule is learned, not hand-written: a subword tokenizer (BPE-style merges over bytes) segments text into IDs from that fixed vocabulary. That is why token count — not character count — drives cost and context usage, and why models can be blind to individual letters inside a token. The real-tokenizer comparison below shows the learned version.</p>
     <label for="tokenInput">Your text</label>
     <textarea id="tokenInput" rows="3">The quick brown fox jumps over the lazy dog.</textarea>
     <div class="token-row" id="tokenRow" aria-live="polite"></div>
@@ -92,6 +76,8 @@
     <button id="realTokBtn" type="button">Tokenize with the real tokenizer</button>
     <div class="token-row" id="realTokenRow"></div>
     <p class="stats" id="realTokStats"></p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Those chunks come from a fixed vocabulary, produced by a <strong>tokenizer</strong> before the model itself sees anything. Spaces and punctuation count as parts of tokens too — try adding punctuation, a capital, or an extra space in the text above and watch the count change.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>More precisely, the splitting rule is learned, not hand-written: a subword tokenizer (BPE-style merges over bytes) segments text into IDs from that fixed vocabulary. That is why token count — not character count — drives cost and context usage, and why models can be blind to individual letters inside a token. The real-tokenizer comparison above shows the learned version.</p>
   </section>
 
   <section id="embeddings" class="panel">
@@ -182,8 +168,6 @@
   <section id="probabilities" class="panel">
     <h2>5 · Next token — a weighted coin flip</h2>
     <p><span class="lvl lvl-b">The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted dice. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the dice fair (wild) or loaded (safe).</span></p>
-    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Those scores have a name: <strong>logits</strong> — one per token, output by the final layer. A function called <strong>softmax</strong> converts them into probabilities that sum to 1, and picking a word is <strong>sampling</strong> from that distribution. Temperature rescales the logits before softmax: below 1 sharpens the odds, above 1 flattens them. Move the slider, then Step, and watch both happen.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Formally, <span class="mono">p = softmax(z/T)</span> over the full vocabulary — about 128k tokens in the local Llama; the bars below show a teaching subset. After sampling, the chosen token is appended to the input and the whole forward pass repeats: that loop is what <em>autoregressive</em> means. T→0 approaches argmax (greedy decoding), T&gt;1 increases entropy. The candidate odds here are didactic; the temperature transform applied to them is exact.</p>
     <p class="story" id="storyText">The capital of France is</p>
     <div class="prob-bars" id="probBars"></div>
     <div class="controls">
@@ -195,6 +179,8 @@
     </div>
     <p class="hint" id="stepNote">Candidate odds are teaching data with realistic shape;
     the temperature maths applied to them is the real maths.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Those scores have a name: <strong>logits</strong> — one per token, output by the final layer. A function called <strong>softmax</strong> converts them into probabilities that sum to 1, and picking a word is <strong>sampling</strong> from that distribution. Temperature rescales the logits before softmax: below 1 sharpens the odds, above 1 flattens them. Move the slider above, then Step, and watch both happen.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Formally, <span class="mono">p = softmax(z/T)</span> over the full vocabulary — about 128k tokens in the local Llama; the bars above show a teaching subset. After sampling, the chosen token is appended to the input and the whole forward pass repeats: that loop is what <em>autoregressive</em> means. T→0 approaches argmax (greedy decoding), T&gt;1 increases entropy. The candidate odds here are didactic; the temperature transform applied to them is exact.</p>
   </section>
 
   <section id="journey" class="panel">
@@ -348,6 +334,20 @@
         <li>Press <strong>Re-check</strong> above.</li>
       </ol>
     </div>
+  </section>
+
+  <section id="showcase" class="panel">
+    <h2>★ Live journey — your words through the real model</h2>
+    <p><span class="lvl lvl-b">The showpiece: type anything, press the button, and watch your words travel up through the model's layers as glowing tokens — then see what it predicts next, with the real choices it weighed up, as towers on the right. It talks to the small Llama model running on your own computer.</span><span class="lvl lvl-m">Your prompt is split into tokens, each token is animated rising through the 16 transformer layers of llama3.2:1b, and the towers on the right show the real top-5 next-token candidates (real logprobs) for the first generated token. The stream below is the real answer continuing.</span><span class="lvl lvl-e">Honesty note: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation shown, the 16-layer count (real for llama3.2:1b via <span class="mono">/api/show</span>), the streamed output, and the candidate probabilities (<span class="mono">exp(logprob)</span>) are real. Full per-token analysis lives in lesson 10 above.</span></p>
+    <label for="journeyPrompt">Your prompt</label>
+    <textarea id="journeyPrompt" rows="2">The capital of France is</textarea>
+    <div class="controls">
+      <button id="journeyBtn" type="button">Send it through the model</button>
+      <span class="stats" id="journeyStatus">Idle — waiting for a prompt.</span>
+    </div>
+    <div id="journeyLive3D" class="canvas-box"></div>
+    <p class="gauge-label">Token journey — drag to orbit · scroll to zoom · left: your tokens rising through 16 layers · right: real next-token candidates</p>
+    <div class="output" id="journeyOut" aria-live="polite"></div>
   </section>
 </main>
 

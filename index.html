@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -20,6 +20,11 @@
     <p class="tagline">See how a language model reads, thinks in vectors, and predicts the next token.</p>
   </div>
   <div class="model-status" id="modelStatus" role="status">
+    <label class="model-pick">Model
+      <select id="modelSelect" title="Choose which local Ollama model Lesson 11 uses">
+        <option value="llama3.2:1b">llama3.2:1b</option>
+      </select>
+    </label>
     <span class="dot dot-unknown" id="statusDot"></span>
     <span id="statusText">Checking local model…</span>
     <button id="recheckBtn" type="button">Re-check</button>
@@ -664,6 +669,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=15"></script>
+<script type="module" src="app.js?v=16"></script>
 </body>
 </html>

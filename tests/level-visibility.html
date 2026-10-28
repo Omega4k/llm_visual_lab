@@ -55,6 +55,16 @@ document.getElementById("f").addEventListener("load", async () => {
     }
   }
 
+  // Model picker in the header.
+  const modelSel = doc.getElementById("modelSelect");
+  check("model picker exists with the default model",
+    !!modelSel && [...modelSel.options].some((o) => o.value === "llama3.2:1b"));
+  modelSel.value = "llama3.2:1b";
+  modelSel.dispatchEvent(new win.Event("change"));
+  check("model picker persists the choice",
+    win.localStorage.getItem("llmLabModel") === "llama3.2:1b" &&
+    doc.getElementById("statusText").textContent.includes("llama3.2:1b"));
+
   // Settings live in the sidebar, not a top bar.
   const sidebarEl = doc.getElementById("sidebar");
   check("no top sticky bar remains", !doc.querySelector(".sticky-bar"));

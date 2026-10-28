@@ -68,6 +68,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 - Lesson 8 can be retrained on your own sentences (vocabulary rebuilds from your words)
 - Lesson 3 has a 3D loss landscape: a ball descends by real gradient descent with a learning-rate slider (crawl, settle, or overshoot the valley)
 - Interactive graphics throughout: token/character hover mapping with surprise presets (lesson 1), a per-layer prediction-sharpening chart (lesson 6), a context conveyor with just-forgotten tokens and at-risk highlighting (lesson 9), and a predict-then-run trap scoreboard with heuristic auto-judging (lesson 10)
+- A header model picker lists whatever Ollama has pulled (`/api/tags`), remembers your choice, and points Lesson 11, the traps and the capstone at it (the printed numbers in Lessons 3 and 12 still describe llama3.2:1b)
 - Lesson 11 is the merged finale: one prompt and one Generate drive the live token journey in 3D (your tokens rise through a 16-layer stack while the real model generates; layer pass is a labelled schematic replay, tokens/output/probabilities are real), the clickable-token candidate analysis, and — at Expert level — a debug panel with the model-facts card (`/api/show`), timing/context breakdowns, stopping reason, per-token logprob/margin/entropy, and the full context token-ID strip (template tokens included)
 
 ## Roadmap

@@ -2,7 +2,12 @@
    Sections: status, tokenizer (teaching approximation), embeddings (three.js), live model. */
 
 const OLLAMA = "http://localhost:11434";
-const MODEL = "llama3.2:1b";
+const DEFAULT_MODEL = "llama3.2:1b";
+let MODEL = DEFAULT_MODEL;
+try {
+  const savedModel = localStorage.getItem("llmLabModel");
+  if (savedModel) MODEL = savedModel;
+} catch (e) { /* keep default */ }
 
 const banner = document.getElementById("errorBanner");
 function showError(msg) {
@@ -322,11 +327,28 @@ async function checkModel() {
     const names = (data.models || []).map((m) => m.name);
     modelOnline = true;
     statusDot.className = "dot dot-on";
+    const sel = document.getElementById("modelSelect");
+    if (names.length) {
+      if (!names.includes(MODEL)) {
+        MODEL = names.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : names[0];
+      }
+      sel.innerHTML = "";
+      for (const n of names) {
+        const opt = document.createElement("option");
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+      }
+      sel.value = MODEL;
+      sel.disabled = false;
+    } else {
+      sel.disabled = true;
+    }
     statusText.textContent = names.length
-      ? "Local model online: " + names.join(", ")
+      ? "Local model online — using " + MODEL + (names.length > 1 ? " (" + names.length + " available)" : "")
       : "Ollama online — no models pulled yet";
     offlineHelp.hidden = names.length > 0;
-    if (!names.length) statusText.textContent += " (run: ollama pull " + MODEL + ")";
+    if (!names.length) statusText.textContent += " (run: ollama pull " + DEFAULT_MODEL + ")";
   } catch (err) {
     modelOnline = false;
     statusDot.className = "dot dot-off";
@@ -335,6 +357,13 @@ async function checkModel() {
   }
 }
 document.getElementById("recheckBtn").addEventListener("click", checkModel);
+document.getElementById("modelSelect").addEventListener("change", (e) => {
+  MODEL = e.target.value;
+  try { localStorage.setItem("llmLabModel", MODEL); } catch (err) { /* private mode */ }
+  statusText.textContent = "Local model online — using " + MODEL;
+  fetchModelCard();
+  showError("Model switched to " + MODEL + ". Lesson 11, the traps and the capstone now use it. (Lessons 3 and 12's printed numbers describe llama3.2:1b.)");
+});
 checkModel();
 
 /* ---------- Lesson 3: live generation (streaming) ---------- */

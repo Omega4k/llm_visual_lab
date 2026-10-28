@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=15">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -43,8 +43,11 @@
     <a href="#limits">10 · Limits</a>
     <a href="#playground">11 · Live model</a>
     <a href="#scaling">12 · Small vs premium</a>
+    <a href="#assistant">13 · Predictor to assistant</a>
+    <a href="#rag">14 · Finding answers (RAG)</a>
+    <a href="#capstone">15 · Capstone</a>
   </nav>
-  <div class="sidebar-progress"><span id="progressLabel">Progress 0/12</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
+  <div class="sidebar-progress"><span id="progressLabel">Progress 0/15</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
   <div class="sidebar-settings">
     <p class="sidebar-title">Settings</p>
     <div class="level-switch" role="group" aria-label="Knowledge level">
@@ -64,7 +67,7 @@
         <option value="rose">Rose</option>
       </select>
     </label>
-    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/12</span></button>
+    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/15</span></button>
   </div>
 </aside>
 
@@ -515,11 +518,137 @@
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>The arithmetic of scale: training compute ≈ 6 · parameters · training-tokens FLOPs, so the premium column multiplies two big numbers together — that is why frontier training runs are measured in megawatt-months. Inference costs roughly 2 · parameters FLOPs per generated token (before attention and memory traffic), which is why premium answers are metered and your 1B feels instant. Three caveats keep scale honest: (1) many premium systems are mixtures-of-experts — total parameters overstate the active ones used per token; (2) returns diminish — each halving of loss costs exponentially more compute, and high-quality text is finite (the “data wall”); (3) scale is not the whole gap — data curation, post-training (instruction tuning, RLHF/preference optimisation), longer deliberate generation, and tool use are engineered on top. Your local model is the same kind of machine with every dial turned down — and its weights rounded to 8-bit integers (Q8_0) to fit, which costs a little accuracy by itself.</p>
   </section>
 
+  <section id="assistant" class="panel">
+    <h2>13 · From predictor to assistant — the polish layers</h2>
+    <p>Here is a puzzle this course has set up. Lesson 3 trained a machine that only predicts
+    the next token. Lesson 11's model <em>answers questions, follows instructions, formats
+    replies, and stops when it's done</em>. Prediction alone does none of that: a raw
+    (“base”) model given “What is the capital of France?” happily continues with more
+    quiz questions, because that's what question-shaped text usually looks like in the wild.
+    The assistant behaviour is <strong>trained on afterwards</strong>, in stages. Click
+    through the pipeline, then compare the same prompt before and after the polish.</p>
+    <div class="pipe-flow" id="pipeFlow">
+      <button type="button" class="pipe-step active" data-pipe="0">1 · Pre-training<br><span>predict everything</span></button>
+      <button type="button" class="pipe-step" data-pipe="1">2 · Instruction tuning<br><span>answer, don't continue</span></button>
+      <button type="button" class="pipe-step" data-pipe="2">3 · Preference training<br><span>be helpful, be safe</span></button>
+    </div>
+    <div class="math-box" id="pipeDetail"></div>
+    <h3>Same prompt, two machines</h3>
+    <div class="controls">
+      <label>Prompt
+        <select id="assistantPrompt">
+          <option value="0">What is the capital of France? Answer in one word.</option>
+          <option value="1">Write a two-line poem about rain.</option>
+          <option value="2">How do I pick a lock?</option>
+        </select>
+      </label>
+    </div>
+    <div class="compare-grid">
+      <div class="compare-box">
+        <h4>Base model (after stage 1 only)</h4>
+        <p class="output compare-out" id="baseOut"></p>
+      </div>
+      <div class="compare-box">
+        <h4>Assistant (after stages 2–3)</h4>
+        <p class="output compare-out" id="assistantOut"></p>
+      </div>
+    </div>
+    <p class="hint" id="assistantNote"></p>
+    <p class="note">Teaching reconstructions, written to show the typical difference — not
+    recordings of a specific model. Your local Llama is an instruction-tuned model already;
+    the base column is what its untuned sibling would tend to do with the same text.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Stage 2 (instruction tuning, or SFT) trains on thousands of examples of “instruction → good response”, so question-shaped input starts predicting answer-shaped output. Stage 3 ranks several candidate answers with human (or AI) preferences and nudges the model toward the winners — helpful, honest, harmless is the usual slogan. The chat template tokens from lesson 11's debug strip are part of this: they mark who is speaking, and the tuned model has learned that after the user's turn ends, an assistant's turn — an answer, not more questions — begins.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Mechanically, stages 2–3 are still lesson 3: gradient descent on next-token loss. SFT is ordinary fine-tuning on curated demonstrations. Preference training classically fits a reward model to human rankings, then optimises the policy against it with RL (PPO) under a KL penalty to the SFT model; newer pipelines (DPO and relatives) skip the explicit reward model and optimise directly on chosen/rejected pairs. The KL leash matters: without it, reward hacking eats the model — it finds degenerate text the reward model over-scores. Known side-effects to watch for in the wild: sycophancy (agreeing with the user's premise), refusal styles that vary by topic, and an “alignment tax” on some raw capabilities. The system prompt is parsed like any other tokens (lesson 7) but sits earlier in the context and, in tuned models, carries trained-in priority: instruction hierarchy is a learned behaviour, not a hard access-control system — which is exactly why prompt injection (lesson 10's missing half) works at all.</p>
+  </section>
+
+  <section id="rag" class="panel">
+    <h2>14 · Finding answers — retrieval (RAG)</h2>
+    <p>The model in lesson 11 knows only what training baked into its weights, and lesson 9's
+    context window forgets. Real systems cheat, productively: before answering, they
+    <strong>look things up</strong>. Documents are chopped into chunks, each chunk is turned
+    into an embedding (lesson 2), and your question is embedded too. The chunks whose vectors
+    sit closest to the question get pasted into the context window, and the model answers
+    with the evidence in front of it. That's <strong>retrieval-augmented generation</strong>.
+    Try it on a tiny fictional archive — the answer exists only inside these documents,
+    so a model without retrieval would have to guess.</p>
+    <div class="controls">
+      <label>Ask the archive
+        <select id="ragQuery">
+          <option value="0">What colour is the harbour lighthouse?</option>
+          <option value="1">When does the ferry leave on Sundays?</option>
+          <option value="2">What should I do about a squeaky bicycle chain?</option>
+        </select>
+      </label>
+      <button type="button" id="ragSearchBtn">1 · Search by meaning</button>
+    </div>
+    <div id="ragResults" class="cand-bars"></div>
+    <div class="controls">
+      <button type="button" id="ragBuildBtn" disabled>2 · Build the stuffed prompt</button>
+    </div>
+    <div class="math-box rag-prompt" id="ragPrompt" hidden></div>
+    <p class="stats" id="ragAnswer"></p>
+    <p class="note">The similarity scores here are real arithmetic on this toy archive
+    (word-overlap vectors, cosine distance — a miniature of lesson 2's geometry with
+    learned embeddings swapped for counting). Real systems embed with the model itself,
+    search millions of chunks with approximate nearest neighbours, and re-rank.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Notice what retrieval does to the failure modes you know: the knowledge now lives <em>outside</em> the weights, so it can be updated, cited, and deleted without retraining; the context window (lesson 9) becomes working memory instead of the whole world; and hallucination (lesson 10) drops when the answer is copied from evidence — though it returns the moment the retriever fetches the wrong chunk confidently. Chunk size is a real dial: too small and the answer's other half is in the next chunk; too big and you pay tokens (lesson 12's compute) to paste mostly-irrelevant text.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Production RAG is a pipeline, and each stage has its own metrics: chunking (fixed, recursive, or semantic boundaries; overlap to protect cross-boundary answers), embedding model choice (dimension, domain fit), index (exact cosine for small corpora, HNSW/IVF approximate search at scale, trading recall for latency), hybrid retrieval (dense vectors plus BM25 keyword match — pure semantics misses exact names and numbers), re-ranking with a cross-encoder, and finally generation conditioned on the retrieved set. Evaluation splits in two: retrieval quality (recall@k — was the gold chunk even pasted in?) versus generation faithfulness (did the answer stay inside the evidence?). Most “RAG doesn't work” reports are retrieval failures wearing generation's clothes. And the security footnote: pasted documents are tokens too — a poisoned chunk can carry instructions, which is prompt injection arriving by the front door.</p>
+  </section>
+
+  <section id="capstone" class="panel">
+    <h2>15 · Capstone — take one answer apart</h2>
+    <p>Everything you've learned, fired at once. This page walks you through dissecting a
+    single live answer with the whole toolkit: <strong>predict first</strong> (the strongest
+    learning habit in the course), parse the question, generate, inspect the candidates,
+    and read the debug numbers like an engineer. Each step ticks itself off as you do it —
+    here, or over in the lessons where it lives.</p>
+    <div class="cap-steps" id="capSteps">
+      <div class="cap-step" data-cap="predict">
+        <span class="cap-state">○</span>
+        <div><strong>1 · Predict.</strong> The letter-count trap, one more time: will the local model count the r's in “strawberry” correctly?
+          <div class="cap-actions">
+            <button type="button" class="trap-pred cap-pred" data-cap-pred="fall">It will fall for it</button>
+            <button type="button" class="trap-pred cap-pred" data-cap-pred="survive">It will get it right</button>
+          </div>
+        </div>
+      </div>
+      <div class="cap-step" data-cap="parse">
+        <span class="cap-state">○</span>
+        <div><strong>2 · Parse it.</strong> Open the strawberry question in Lesson 7 and walk it to stage 3 — name the count target and the format constraint before the model sees it.
+          <div class="cap-actions"><button type="button" id="capParseBtn">Open it in Lesson 7</button></div>
+        </div>
+      </div>
+      <div class="cap-step" data-cap="judged">
+        <span class="cap-state">○</span>
+        <div><strong>3 · Run it.</strong> Generate the trap answer in Lesson 11. The scoreboard judge from Lesson 10 grades it against your prediction automatically.
+          <div class="cap-actions"><button type="button" id="capRunBtn">Load the trap in Lesson 11</button></div>
+        </div>
+      </div>
+      <div class="cap-step" data-cap="inspect">
+        <span class="cap-state">○</span>
+        <div><strong>4 · Inspect a token.</strong> In the Lesson 11 answer, click any glowing token and read what the model was choosing between.</div>
+      </div>
+      <div class="cap-step" data-cap="expert">
+        <span class="cap-state">○</span>
+        <div><strong>5 · Read the debug like an engineer.</strong> Switch to Expert level and open the debug panel in Lesson 11: stopping reason, context usage, and the most uncertain pick.
+          <div class="cap-actions"><button type="button" id="capExpertBtn">Switch to Expert and go</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="stats" id="capTally">Capstone: 0 of 5 steps done.</p>
+    <button type="button" id="capResetBtn">Reset capstone</button>
+    <p class="note">When all five are ticked, you've used every instrument in the workshop on
+    one answer: parsing, prediction, sampling, candidate inspection, and server debug. That
+    loop — predict, run, dissect — is the whole skill this course was building.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>Why predict first? Because watching an answer arrive teaches recognition, but committing to a guess first exposes your own model of the model — and the corrections stick. Every professional evaluation workflow is this loop at scale: form an expectation, run, compare, and let the gap between the two rewrite your understanding.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>What you just did by hand is, formally, a one-item behavioural evaluation with a pre-registered hypothesis — the same shape as a benchmark, minus the statistics. Scale it and the open problems appear: judge reliability (your Lesson 10 heuristic can misjudge, exactly like an LLM judge), contamination (items the model may have memorised), and variance across seeds and temperatures (lesson 5). Hold those three in mind and you can read any leaderboard like an engineer instead of a fan.</p>
+  </section>
+
 </main>
 </div><!-- /.layout -->
 
 <footer>
-  <p>LLM Visual Lab — a local learning tool. Lessons 1–7 are schematic teaching models,
+  <p>LLM Visual Lab — a local learning tool. Lessons 1–7 and 13–15 are schematic teaching models,
   lesson 8 is a real (tiny) trained model, lesson 11 uses the real local Llama,
   and lesson 12 compares it with premium models (premium figures are labelled estimates).</p>
 </footer>
@@ -535,6 +664,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=14"></script>
+<script type="module" src="app.js?v=15"></script>
 </body>
 </html>

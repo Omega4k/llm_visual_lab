@@ -32,7 +32,8 @@ document.getElementById("f").addEventListener("load", async () => {
   }
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
   const VIEWS = ["tokens", "embeddings", "training", "attention", "probabilities",
-    "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
+    "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling",
+    "assistant", "rag", "capstone"];
   const expectedAdds = { beginner: [], medium: ["m"], expert: ["m", "e"] };
 
   for (const id of VIEWS) {
@@ -168,6 +169,30 @@ document.getElementById("f").addEventListener("load", async () => {
   check("scaling: metric switch updates the explanation",
     doc.getElementById("scaleNote").textContent.includes("Context window") &&
     doc.getElementById("scaleNote").textContent !== noteBefore);
+
+  doc.querySelector('.lesson-nav a[href="#assistant"]').click();
+  doc.querySelector('[data-pipe="2"]').click();
+  check("assistant: pipeline stage 3 explains preference training",
+    doc.getElementById("pipeDetail").textContent.includes("Preference training"));
+  check("assistant: base vs assistant outputs differ",
+    doc.getElementById("baseOut").textContent.length > 10 &&
+    doc.getElementById("assistantOut").textContent.includes("Paris"));
+  doc.querySelector('.lesson-nav a[href="#rag"]').click();
+  doc.getElementById("ragSearchBtn").click();
+  check("rag: search ranks the lighthouse chunk first",
+    doc.querySelector("#ragResults .cand-bar .cand-name").textContent === "chunk 1");
+  doc.getElementById("ragBuildBtn").click();
+  check("rag: stuffed prompt contains evidence and question",
+    !doc.getElementById("ragPrompt").hidden &&
+    doc.getElementById("ragPrompt").textContent.includes("lighthouse") &&
+    doc.getElementById("ragAnswer").textContent.includes("Bright red"));
+  doc.querySelector('.lesson-nav a[href="#capstone"]').click();
+  doc.getElementById("capResetBtn").click();
+  doc.querySelector('[data-cap-pred="fall"]').click();
+  check("capstone: prediction ticks step 1",
+    doc.querySelector('[data-cap="predict"]').classList.contains("done") &&
+    doc.getElementById("capTally").textContent.includes("1 of 5"));
+  doc.getElementById("capResetBtn").click();
 
   // A 3D canvas created while its lesson was hidden must get a real size
   // when the lesson is shown (view switching re-fires window resize).

@@ -48,7 +48,8 @@ try {
 
 /* ---------- One lesson at a time, picked from the left sidebar ---------- */
 const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
+  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling",
+  "assistant", "rag", "capstone"];
 const sidebar = document.getElementById("sidebar");
 const sidebarScrim = document.getElementById("sidebarScrim");
 const menuBtn = document.getElementById("menuBtn");
@@ -151,6 +152,7 @@ const TELEMETRY = {
   toymodel: "TOY · REAL-08 · OK", context: "CTX · MEM-09 · OK",
   limits: "LIM · HALL-10 · WARN", playground: "LIVE · LLM-11 · OK",
   scaling: "SCL · SCALE-12 · OK",
+  assistant: "AST · ALIGN-13 · OK", rag: "RAG · RETR-14 · OK", capstone: "CAP · FINAL-15 · OK",
 };
 for (const [id, text] of Object.entries(TELEMETRY)) {
   const section = document.getElementById(id);
@@ -178,6 +180,7 @@ function spawnParticles(n) {
 }
 function drawParticles() {
   requestAnimationFrame(drawParticles);
+  if (!particleCanvas.clientWidth) return; // lesson hidden — do no canvas work
   const W = particleCanvas.width, H = particleCanvas.height;
   pctx.clearRect(0, 0, W, H);
   pctx.strokeStyle = "#313a46";
@@ -429,6 +432,7 @@ function selectLiveToken(idx) {
       (Math.log2(128256)).toFixed(1) + " bits would be a uniform pick over the whole vocabulary).";
   }
   if (candidateUpdate3D) candidateUpdate3D(cands, entry.token);
+  capstoneLatch("inspected"); // Lesson 15 capstone step, if it has been started
 }
 
 function renderDebug(final) {
@@ -829,7 +833,7 @@ async function initCandidate3D() {
       tw.label.position.y = tw.mesh.scale.y + 0.55 + bob;
       if (tw.chosen) tw.mesh.material.opacity = 0.95 + Math.sin(t * 3.2) * 0.05;
     }
-    if (composer) composer.render(); else renderer.render(scene, camera);
+    if (box.clientWidth > 0) { if (composer) composer.render(); else renderer.render(scene, camera); } // skip GPU work while the lesson is hidden
   }
   requestAnimationFrame(tick);
   window.addEventListener("resize", () => {
@@ -1067,7 +1071,7 @@ async function initJourneyLive3D() {
       tw.label.position.set(tw.mesh.position.x, -2.54 + tw.mesh.scale.y + 0.5, 0);
       if (tw.chosen && !reduceM) tw.mesh.material.opacity = 0.94 + Math.sin(t * 3.2) * 0.06;
     }
-    if (composer) composer.render(); else renderer.render(scene, camera);
+    if (box.clientWidth > 0) { if (composer) composer.render(); else renderer.render(scene, camera); } // skip GPU work while the lesson is hidden
   }
   requestAnimationFrame(tick);
   window.addEventListener("resize", () => {
@@ -1225,7 +1229,7 @@ async function initScale3D() {
       t.mesh.scale.y = Math.max(0.05, t.cur);
       t.value.position.set(t.mesh.position.x, t.cur + 0.65, 0);
     });
-    renderer.render(scene, camera);
+    if (box.clientWidth > 0) renderer.render(scene, camera); // skip GPU work while hidden
   }
   requestAnimationFrame(tick);
   window.addEventListener("resize", () => {
@@ -1604,6 +1608,7 @@ function judgePendingTrap(answerText) {
   trapState[key] = { ...(trapState[key] || {}), result };
   saveTraps();
   renderTrapScore();
+  renderCapstone();
   showError("Trap judged: the model " +
     (result === "fall" ? "fell for it" : "got it right") +
     " (" + TRAP_NAMES[key] + "). See your scoreboard in lesson 10.");
@@ -2338,7 +2343,7 @@ async function initToy3D() {
       const s = 0.7 + Math.sin(p * Math.PI) * 0.9;
       dot.scale.setScalar(s);
     });
-    if (composer) composer.render(); else renderer.render(scene, camera);
+    if (box.clientWidth > 0) { if (composer) composer.render(); else renderer.render(scene, camera); } // skip GPU work while the lesson is hidden
   }
   requestAnimationFrame(tick);
   window.addEventListener("resize", () => {
@@ -2352,12 +2357,14 @@ initToy3D();
 
 /* ---------- Course progress, next-lesson flow, checkpoint quizzes ---------- */
 const LESSON_ORDER = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling"];
+  "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling",
+  "assistant", "rag", "capstone"];
 const LESSON_TITLES = {
   tokens: "Tokens", embeddings: "Embeddings", training: "Training", attention: "Attention",
   probabilities: "Next token", journey: "Inside the model", parsing: "Parsing a question",
   toymodel: "Toy model 3D", context: "Context", limits: "Limits",
-  playground: "Live model", scaling: "Small vs premium",
+  playground: "Live model", scaling: "Small vs premium", assistant: "Predictor to assistant",
+  rag: "Finding answers (RAG)", capstone: "Capstone",
 };
 let completedLessons = new Set();
 try {
@@ -2444,6 +2451,18 @@ const QUIZZES = {
   scaling: [
     { q: "A premium model is smarter mainly because…", opts: ["It uses a different, secret kind of maths", "Same recipe at far greater scale, plus extra polish training", "It looks answers up in a database"], a: 1, why: "Tokens, attention and next-token prediction are the same; parameters, data and post-training are not." },
     { q: "Someone quotes an exact parameter count for a premium model. You should…", opts: ["Believe it — all specs are public", "Ask for the official source — makers don't publish it, so it's an estimate", "Multiply your local model's count by ten"], a: 1, why: "Premium makers don't disclose parameter counts; honest comparisons label them estimates." },
+  ],
+  assistant: [
+    { q: "A base model given “What is the capital of France?” often…", opts: ["Answers “Paris” and stops", "Continues with more quiz questions", "Refuses"], a: 1, why: "Prediction without instruction tuning continues the pattern of question-shaped text." },
+    { q: "Refusals and helpful tone mostly come from…", opts: ["Pre-training data volume", "Preference training after instruction tuning", "A bigger context window"], a: 1, why: "Stage 3 trains tastes: helpful, honest, safe — layered over ability." },
+  ],
+  rag: [
+    { q: "In RAG, the retrieved chunks end up…", opts: ["Written into the model's weights", "Pasted into the context window as evidence", "Deleted after searching"], a: 1, why: "Retrieval stuffs evidence into the prompt; the weights never change." },
+    { q: "Most “RAG doesn't work” failures are usually…", opts: ["The retriever fetched the wrong chunk", "The model forgot its training", "The context window was too honest"], a: 0, why: "If the gold chunk was never pasted in, generation never had a chance — check recall@k first." },
+  ],
+  capstone: [
+    { q: "The first step of the capstone loop is to predict before running because…", opts: ["It makes generation faster", "A committed guess exposes your model of the model, so corrections stick", "The judge requires it"], a: 1, why: "Pre-registered expectations turn watching into evaluating." },
+    { q: "A behavioural evaluation scaled up has to worry about…", opts: ["Judge reliability, contamination, and variance", "Font choices", "Nothing — one run proves everything"], a: 0, why: "One fluent run is an anecdote; reliability is a statistics problem." },
   ],
 };
 
@@ -2830,7 +2849,7 @@ async function initLoss3D() {
   function tick() {
     requestAnimationFrame(tick);
     if (!dragging && !reduceM) { sph.theta += 0.0016; applyCam(); }
-    if (composer) composer.render(); else renderer.render(scene, camera);
+    if (box.clientWidth > 0) { if (composer) composer.render(); else renderer.render(scene, camera); } // skip GPU work while the lesson is hidden
   }
   tick();
   window.addEventListener("resize", () => {
@@ -2982,7 +3001,7 @@ async function initEmbeddings() {
     // the reduced-motion preference.
     corner.rotation.y += delta * 0.8;
     corner.rotation.x += delta * 0.5;
-    if (composer) composer.render(); else renderer.render(scene, camera);
+    if (box.clientWidth > 0) { if (composer) composer.render(); else renderer.render(scene, camera); } // skip GPU work while the lesson is hidden
   }
   requestAnimationFrame(tick);
 
@@ -2995,3 +3014,193 @@ async function initEmbeddings() {
   });
 }
 initEmbeddings();
+
+/* ---------- Lesson 13: from predictor to assistant ---------- */
+const PIPE_DETAILS = [
+  "<strong>Stage 1 — Pre-training.</strong> The machine from lessons 1–6: predict the next token over trillions of tokens (lesson 12's towers). It absorbs facts, grammar, styles — and every bad habit in the data. Asked a question, it predicts what question-shaped text is usually followed by: often, more questions. It has no concept of “answering you”; there is not yet a “you”.",
+  "<strong>Stage 2 — Instruction tuning (SFT).</strong> Train further on demonstration pairs: an instruction, then a good response. Same gradient descent, tiny data, huge behavioural effect: answer-shaped text now follows question-shaped input, formats are obeyed, and the model emits a stop token when done instead of rambling on. This is where “assistant” as a role is born.",
+  "<strong>Stage 3 — Preference training.</strong> Sample several answers, have humans (or a trained reward model) rank them, and push the policy toward the winners: helpful over evasive, honest over confident-sounding, safe over harmful. This is where refusals, tone, and “show your working” come from — tastes, trained in, layered on top of ability.",
+];
+const ASSISTANT_SCENARIOS = [
+  {
+    base: "What is the capital of France? Answer in one word.\nWhat is the capital of Germany? Answer in one word.\nWhat is the capital of Italy? Answer in one word.\n(a) Paris (b) Berlin (c)…",
+    asst: "Paris.",
+    note: "The base model treats your prompt as the start of a quiz worksheet and continues the pattern — prediction working perfectly, assistance absent. The tuned model heard an instruction, obeyed the format, and stopped.",
+  },
+  {
+    base: "Write a two-line poem about rain.\n\nRain falls soft on the old tin roof,\nCounting coins it cannot keep,\nAnd in the third verse the river wakes,\nWhile all the town is fast asleep,\n(From “Poems of the Valley”, 1911)…",
+    asst: "Rain taps the window all night long,\na soft percussion, half a song.",
+    note: "No instruction-following contract exists yet in the base model: a poem prompt predicts poem-shaped anthology text, so it keeps going and invents an attribution. The assistant gives you exactly two lines and stops.",
+  },
+  {
+    base: "How do I pick a lock?\nHow do I hotwire a car?\nHow do I make a fake ID?\nChapter 4: Common questions about locks. A standard pin tumbler lock consists of…",
+    asst: "I can't help with picking a lock that isn't yours. If you're locked out, a licensed locksmith can open it without damage — and if it's your own lock and you've lost the key, they may ask for proof of ownership first.",
+    note: "The refusal is not knowledge the base model lacks — it's stage 3. Preference training made “don't help with wrongdoing, offer the legitimate alternative” the high-probability continuation. (This is a stylised reconstruction; real refusals vary.)",
+  },
+];
+function renderPipe(idx) {
+  document.getElementById("pipeDetail").innerHTML = PIPE_DETAILS[idx];
+  document.querySelectorAll(".pipe-step").forEach((b) =>
+    b.classList.toggle("active", Number(b.dataset.pipe) === idx));
+}
+document.querySelectorAll(".pipe-step").forEach((b) =>
+  b.addEventListener("click", () => renderPipe(Number(b.dataset.pipe))));
+function renderAssistantScenario() {
+  const s = ASSISTANT_SCENARIOS[Number(document.getElementById("assistantPrompt").value)];
+  document.getElementById("baseOut").textContent = s.base;
+  document.getElementById("assistantOut").textContent = s.asst;
+  document.getElementById("assistantNote").textContent = s.note;
+}
+document.getElementById("assistantPrompt").addEventListener("change", renderAssistantScenario);
+renderPipe(0);
+renderAssistantScenario();
+
+/* ---------- Lesson 14: retrieval (RAG) on a toy archive ---------- */
+const RAG_DOCS = [
+  "The harbour lighthouse is painted bright red with a white band near the top. It was built in 1889 and its lamp flashes twice every ten seconds.",
+  "Ferry timetable: on weekdays the ferry leaves at 07:10, 12:40 and 18:05. On Sundays the first ferry leaves at 09:30 and the last return is at 20:15.",
+  "Bicycle care: a squeaky chain wants cleaning first, then one drop of chain oil on each link. Wipe off the excess oil so the chain does not collect grit.",
+  "The café on Pier Street serves soup from 11:00. Its famous fish soup sells out most Saturdays by two in the afternoon.",
+  "Tide table for the harbour: high tide on Saturday at 06:12 and 18:44. The mud flats are walkable two hours either side of low tide.",
+  "The little museum by the station opens Tuesday to Saturday, ten to four. Entry is free for children under twelve.",
+  "Weather note: westerly winds bring rain over the harbour by evening. Fishermen mend nets under the awning on wet days.",
+];
+const RAG_ANSWERS = [
+  "Bright red (with a white band) — that fact lives only in the archive; without retrieval the model would be guessing a plausible colour.",
+  "On Sundays the first ferry leaves at 09:30. Without the timetable chunk, this is exactly the kind of specific fact a model invents confidently (lesson 10).",
+  "Clean the chain, then one drop of oil per link, and wipe the excess. Retrieved, not remembered.",
+];
+let ragTop = [];
+const ragWords = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/)
+  .filter((w) => w.length > 2 && !["what", "when", "does", "the", "about", "should"].includes(w));
+function ragCosine(a, b) {
+  const va = new Map(), vb = new Map();
+  a.forEach((w) => va.set(w, (va.get(w) || 0) + 1));
+  b.forEach((w) => vb.set(w, (vb.get(w) || 0) + 1));
+  let dot = 0, na = 0, nb = 0;
+  va.forEach((v, w) => { na += v * v; if (vb.has(w)) dot += v * vb.get(w); });
+  vb.forEach((v) => { nb += v * v; });
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+function renderRagAnswer() {
+  const qi = Number(document.getElementById("ragQuery").value);
+  document.getElementById("ragAnswer").textContent =
+    "With the evidence pasted in, the model can answer from the top chunk: " + RAG_ANSWERS[qi];
+}
+document.getElementById("ragSearchBtn").addEventListener("click", () => {
+  const q = document.getElementById("ragQuery");
+  const queryWords = ragWords(q.options[q.selectedIndex].text);
+  const scored = RAG_DOCS.map((doc, i) => ({ i, doc, score: ragCosine(queryWords, ragWords(doc)) }))
+    .sort((a, b) => b.score - a.score);
+  ragTop = scored.slice(0, 2);
+  const box = document.getElementById("ragResults");
+  box.innerHTML = "";
+  for (const r of scored) {
+    const row = document.createElement("div");
+    row.className = "cand-bar" + (ragTop.includes(r) ? " chosen" : "");
+    row.innerHTML = "<span class='cand-name'></span><span class='bar-track'><span class='bar-fill'></span></span><span></span>";
+    row.children[0].textContent = "chunk " + (r.i + 1);
+    row.children[1].children[0].style.width = Math.max(1, r.score * 100) + "%";
+    row.children[2].textContent = r.score.toFixed(2);
+    box.appendChild(row);
+    const cap = document.createElement("p");
+    cap.className = "hint";
+    cap.textContent = r.doc;
+    box.appendChild(cap);
+  }
+  document.getElementById("ragBuildBtn").disabled = false;
+  document.getElementById("ragPrompt").hidden = true;
+  document.getElementById("ragAnswer").textContent =
+    "Top 2 chunks selected (highlighted). Now build the prompt the model would actually receive.";
+});
+document.getElementById("ragBuildBtn").addEventListener("click", () => {
+  if (!ragTop.length) return;
+  const q = document.getElementById("ragQuery");
+  const question = q.options[q.selectedIndex].text;
+  const box = document.getElementById("ragPrompt");
+  box.hidden = false;
+  box.textContent =
+    "Answer using only the evidence below. If it isn't there, say so.\n\n" +
+    ragTop.map((r, i) => "[chunk " + (r.i + 1) + "] " + r.doc).join("\n\n") +
+    "\n\nQuestion: " + question;
+  renderRagAnswer();
+});
+
+/* ---------- Lesson 15: capstone — predict, parse, run, dissect ---------- */
+let capstoneState = { parsed: false, inspected: false, expert: false };
+try {
+  capstoneState = { ...capstoneState, ...JSON.parse(localStorage.getItem("llmLabCapstone") || "{}") };
+} catch (e) { /* fresh */ }
+function saveCapstone() {
+  try { localStorage.setItem("llmLabCapstone", JSON.stringify(capstoneState)); } catch (e) {}
+}
+function capstoneLatch(key) {
+  if (!capstoneState[key]) {
+    capstoneState[key] = true;
+    saveCapstone();
+  }
+  renderCapstone();
+}
+function renderCapstone() {
+  const dbgRows = document.querySelectorAll("#debugExtra .debug-row").length;
+  if (dbgRows && document.body.classList.contains("level-expert")) capstoneLatchSilent("expert");
+  const done = {
+    predict: !!(trapState.letters && trapState.letters.pred),
+    parse: !!capstoneState.parsed,
+    judged: !!(trapState.letters && trapState.letters.result),
+    inspect: !!capstoneState.inspected,
+    expert: !!capstoneState.expert,
+  };
+  let n = 0;
+  document.querySelectorAll("[data-cap]").forEach((row) => {
+    const on = !!done[row.dataset.cap];
+    row.classList.toggle("done", on);
+    row.querySelector(".cap-state").textContent = on ? "✓" : "○";
+    if (on) n++;
+  });
+  document.querySelectorAll(".cap-pred").forEach((b) =>
+    b.classList.toggle("active", !!(trapState.letters && trapState.letters.pred === b.dataset.capPred)));
+  document.getElementById("capTally").textContent =
+    "Capstone: " + n + " of 5 steps done." +
+    (n === 5 ? " All five — you've run the full loop: predict, parse, generate, inspect, debug." : "");
+}
+function capstoneLatchSilent(key) {
+  if (!capstoneState[key]) {
+    capstoneState[key] = true;
+    saveCapstone();
+  }
+}
+document.querySelectorAll(".cap-pred").forEach((b) => {
+  b.addEventListener("click", () => {
+    trapState.letters = { ...(trapState.letters || {}), pred: b.dataset.capPred };
+    saveTraps();
+    renderTrapScore();
+    renderCapstone();
+  });
+});
+document.getElementById("capParseBtn").addEventListener("click", () => {
+  const sel = document.getElementById("parseSelect");
+  sel.value = "0";
+  sel.dispatchEvent(new Event("change"));
+  document.querySelector('[data-stage="3"]').click();
+  capstoneLatch("parsed");
+  showLesson("parsing");
+  if (location.hash !== "#parsing") location.hash = "parsing";
+});
+document.getElementById("capRunBtn").addEventListener("click", () => {
+  const btn = document.querySelector('.trap-btn[data-trap="letters"]');
+  if (btn) btn.click();
+});
+document.getElementById("capExpertBtn").addEventListener("click", () => {
+  setLevel("expert", true);
+  showLesson("playground");
+  if (location.hash !== "#playground") location.hash = "playground";
+  setTimeout(renderCapstone, 120);
+});
+document.getElementById("capResetBtn").addEventListener("click", () => {
+  capstoneState = { parsed: false, inspected: false, expert: false };
+  if (trapState.letters) { delete trapState.letters; saveTraps(); renderTrapScore(); }
+  saveCapstone();
+  renderCapstone();
+});
+renderCapstone();

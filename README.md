@@ -6,7 +6,7 @@ local Llama model for live examples. Nothing leaves your machine.
 
 ## Status
 
-Twelve lessons: token visualizer (teaching approximation), 3D embedding word
+Fifteen lessons: token visualizer (teaching approximation), 3D embedding word
 cloud (with why words cluster), animated toy training run with a 3D loss
 landscape, attention explorer, next-token probability stepper (real
 temperature maths on teaching data), a layer-by-layer token journey through
@@ -16,8 +16,13 @@ in 3D, context-window forgetting demo, hallucination traps, a streaming
 playground that talks to a local model server, and a small-vs-premium
 scaling comparison with a log-scale 3D tower chart (premium makers don't
 publish their specs, so that column is labelled as class estimates
-throughout). Lessons 1–7, 9, 10 and 12 are schematic teaching models;
-lesson 8 is a real tiny model in the page; lesson 11 uses the real model.
+throughout), a predictor-to-assistant post-training lesson (clickable
+pipeline, base-vs-assistant comparisons), a toy RAG lesson (real cosine
+search over a fictional archive, stuffed-prompt builder), and a capstone
+that runs the whole loop on one live answer (predict → parse → generate →
+inspect → expert debug). Lessons 1–7, 9, 10 and 12–15 are schematic
+teaching models; lesson 8 is a real tiny model in the page; lesson 11
+uses the real model.
 
 ## Run it
 

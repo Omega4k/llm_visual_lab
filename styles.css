@@ -135,6 +135,27 @@ textarea:focus { outline: 2px solid var(--accent-dark); }
 .parse-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .parse-word { color: #14181d; font-weight: 600; cursor: default; }
 .parse-link-label { margin: 0.1rem 0 0.5rem; }
+.pipe-flow { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0 0.6rem; }
+.pipe-step { background: var(--control); color: var(--text); font-weight: 600; text-align: left; }
+.pipe-step span { font-weight: 400; font-size: 0.82rem; color: var(--muted); }
+.pipe-step.active { background: var(--accent); color: #1a1408; }
+.pipe-step.active span { color: #4a3410; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.6rem; }
+@media (max-width: 760px) { .compare-grid { grid-template-columns: 1fr; } }
+.compare-box h4 { margin: 0 0 0.4rem; color: var(--accent); }
+.compare-out { min-height: 5.5rem; font-size: 0.95rem; }
+.rag-prompt { white-space: pre-wrap; }
+.cap-steps { display: grid; gap: 0.6rem; margin: 1rem 0; }
+.cap-step {
+  display: flex; gap: 0.7rem; align-items: flex-start;
+  background: var(--inset); border: 1px solid var(--panel-edge);
+  border-radius: 8px; padding: 0.7rem 0.9rem;
+}
+.cap-step .cap-state { font-size: 1.15rem; line-height: 1.3; }
+.cap-step.done .cap-state { color: var(--good); }
+.cap-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.45rem; }
+.cap-actions button { background: var(--control); color: var(--text); font-weight: 500; padding: 0.35rem 0.8rem; font-size: 0.9rem; }
+#capResetBtn { background: var(--control); color: var(--text); font-weight: 500; padding: 0.35rem 0.8rem; }
 .scale-btn { background: var(--control); color: var(--text); font-weight: 500; }
 .scale-btn:hover { background: var(--control-hover); }
 .scale-btn.active { background: var(--accent); color: #1a1408; font-weight: 700; }

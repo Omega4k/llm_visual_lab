@@ -58,8 +58,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
   loaded on demand; Llama's algorithm is the same family with a larger vocabulary)
 - Lesson 7 can be retrained on your own sentences (vocabulary rebuilds from your words)
 - Lesson 3 has a 3D loss landscape: a ball descends by real gradient descent with a learning-rate slider (crawl, settle, or overshoot the valley)
-- Lesson 10 uses real Ollama debug data: per-token logprobs with clickable tokens, 3D candidate towers, a model-facts card (`/api/show`), server-measured tok/s, and the full context token-ID strip (template tokens included)
-- Closing showcase, after lesson 10: a live token journey — your prompt's tokens rise through a 16-layer 3D stack while the real model generates, ending in real next-token candidate towers (layer pass is a labelled schematic replay; tokens, output and probabilities are real)
+- Lesson 10 is the merged finale: one prompt and one Generate drive the live token journey in 3D (your tokens rise through a 16-layer stack while the real model generates; layer pass is a labelled schematic replay, tokens/output/probabilities are real), the clickable-token candidate analysis, and — at Expert level — a debug panel with the model-facts card (`/api/show`), timing/context breakdowns, stopping reason, per-token logprob/margin/entropy, and the full context token-ID strip (template tokens included)
 
 ## Roadmap
 

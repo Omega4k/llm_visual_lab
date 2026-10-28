@@ -41,7 +41,6 @@
     <a href="#context">8 · Context</a>
     <a href="#limits">9 · Limits</a>
     <a href="#playground">10 · Live model</a>
-    <a href="#showcase">★ Live journey</a>
   </nav>
   <div class="sidebar-progress"><span id="progressLabel">Progress 0/10</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
   <div class="sidebar-settings">
@@ -334,21 +333,29 @@
       <button id="stopBtn" type="button" disabled>Stop</button>
     </div>
     <p class="hint">Low temperature = safe, repetitive picks. High temperature = wilder, riskier picks.</p>
+    <h3>Watch it travel — your tokens through the model</h3>
+    <div id="journeyLive3D" class="canvas-box"></div>
+    <p class="gauge-label">Token journey — drag to orbit · scroll to zoom · left: your tokens rising through 16 layers · right: real next-token candidates for the first prediction</p>
+    <p class="stats" id="journeyStatus">Idle — press Generate and your tokens will rise through the layers.</p>
     <canvas id="particleCanvas" class="particle-canvas" width="860" height="110" aria-hidden="true"></canvas>
     <p class="gauge-label">Token stream — one burst per generated token chunk</p>
     <div class="output" id="output" aria-live="polite"></div>
     <p class="stats" id="liveStats"></p>
-    <div class="model-card" id="modelCard">Loading model facts…</div>
     <h3>What the model considered — real probabilities</h3>
     <p>Every glowing piece of the answer above is a token the model picked. Click one: the towers show the other words it was choosing between, and how sure it was. Tall tower = “almost certainly this one”. Several similar towers = “a real choice”. It replays live while the model writes.</p>
     <div id="candidate3D" class="canvas-box"></div>
     <p class="gauge-label">Candidate towers — drag to orbit · scroll to zoom · click a token in the answer to inspect it</p>
     <div class="cand-bars" id="candidateBars"><p class="hint">Generate something, then click a token in the answer.</p></div>
     <p class="stats" id="candidateInfo"></p>
-    <h3>Inside the request — debug data from the model server</h3>
-    <p>Below is data your computer's model server reports about the last run: how fast it thought, and the exact numbered token IDs it processed — including hidden instruction tokens wrapped around your prompt that you never typed.</p>
-    <p class="stats" id="debugStats">No generation yet this session.</p>
-    <div class="ctx-ids" id="contextIds"></div>
+    <div class="lvl-add lvl-add-e expert-debug">
+      <h3><span class="lvl-add-tag">Expert · debug</span>Inside the request — data from the model server</h3>
+      <p>Below is data your computer's model server reports about the last run: how fast it thought, and the exact numbered token IDs it processed — including hidden instruction tokens wrapped around your prompt that you never typed.</p>
+      <div class="model-card" id="modelCard">Loading model facts…</div>
+      <p class="stats" id="debugStats">No generation yet this session.</p>
+      <div class="debug-extra" id="debugExtra"></div>
+      <p class="stats" id="tokenDebug">Click a token in the answer to see its Expert debug numbers here.</p>
+      <div class="ctx-ids" id="contextIds"></div>
+    </div>
     <div class="offline-help" id="offlineHelp" hidden>
       <h3>The local model is not reachable</h3>
       <ol>
@@ -359,24 +366,9 @@
       </ol>
     </div>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>The model behind the button is a real, small Llama running locally via Ollama. It generates <strong>autoregressively</strong> — one token at a time, sampling each next token from its probability distribution at your chosen temperature, then feeding that token back in. The towers above are the real top-5 candidates with their probabilities (from Ollama logprobs) for the token you clicked — the same softmax competition from lesson 5, now with real numbers. Tower height uses a square-root scale so small probabilities stay visible.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Live inference against llama3.2:1b on localhost:11434, streamed token-by-token from <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>. Each chunk is one token sampled from softmax(z/T) at your T; the full context is reprocessed per token (KV-cached server-side). Probabilities are <span class="mono">exp(logprob)</span>, “all others” is the remaining mass over the ~128k vocabulary, and tower height ∝ √p (noted, not hidden). The debug timings are Ollama's own raw nanosecond fields (<span class="mono">total/load/prompt_eval/eval</span>), and the ID strip is the full <span class="mono">context</span> array — note the chat-template tokens (<span class="mono">128006/128007/128009</span>…) bookending your text: your prompt alone did not look like that inside the model.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Live inference against llama3.2:1b on localhost:11434, streamed token-by-token from <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>. Each chunk is one token sampled from softmax(z/T) at your T; the full context is reprocessed per token (KV-cached server-side). Probabilities are <span class="mono">exp(logprob)</span>, “all others” is the remaining mass over the ~128k vocabulary, and tower height ∝ √p (noted, not hidden). One honesty note on the journey view: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation, the 16-layer count (real, via <span class="mono">/api/show</span>), the streamed output and the candidate probabilities are real. The full debug breakdown is in the Expert debug panel above.</p>
   </section>
 
-  <section id="showcase" class="panel">
-    <h2>★ Live journey — your words through the real model</h2>
-    <p>The showpiece: type anything, press the button, and watch your words travel up through the model's layers as glowing tokens — then see what it predicts next, with the real choices it weighed up, as towers on the right. It talks to the small Llama model running on your own computer.</p>
-    <label for="journeyPrompt">Your prompt</label>
-    <textarea id="journeyPrompt" rows="2">The capital of France is</textarea>
-    <div class="controls">
-      <button id="journeyBtn" type="button">Send it through the model</button>
-      <span class="stats" id="journeyStatus">Idle — waiting for a prompt.</span>
-    </div>
-    <div id="journeyLive3D" class="canvas-box"></div>
-    <p class="gauge-label">Token journey — drag to orbit · scroll to zoom · left: your tokens rising through 16 layers · right: real next-token candidates</p>
-    <div class="output" id="journeyOut" aria-live="polite"></div>
-    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>What you are watching: your prompt is split into tokens, each token is animated rising through the 16 transformer layers of llama3.2:1b, and the towers on the right show the real top-5 next-token candidates (real logprobs) for the first generated token. The stream above is the real answer continuing.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Honesty note: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation shown, the 16-layer count (real for llama3.2:1b via <span class="mono">/api/show</span>), the streamed output, and the candidate probabilities (<span class="mono">exp(logprob)</span>) are real. Full per-token analysis lives in lesson 10.</p>
-  </section>
 </main>
 </div><!-- /.layout -->
 

@@ -48,7 +48,7 @@ try {
 
 /* ---------- One lesson at a time, picked from the left sidebar ---------- */
 const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "toymodel", "context", "limits", "playground", "showcase"];
+  "journey", "toymodel", "context", "limits", "playground"];
 const sidebar = document.getElementById("sidebar");
 const sidebarScrim = document.getElementById("sidebarScrim");
 const menuBtn = document.getElementById("menuBtn");
@@ -61,6 +61,7 @@ menuBtn.addEventListener("click", () =>
   setSidebar(!sidebar.classList.contains("open")));
 sidebarScrim.addEventListener("click", () => setSidebar(false));
 function showLesson(id) {
+  if (id === "showcase") id = "playground"; // merged into lesson 10
   if (!VIEW_IDS.includes(id)) id = "tokens";
   document.querySelectorAll("main > section.panel").forEach((sec) =>
     sec.classList.toggle("active-view", sec.id === id));
@@ -304,6 +305,19 @@ let liveTokens = [];
 let selectedLive = -1;
 let candidateUpdate3D = null;
 const fmtPct = (p) => p >= 0.1 ? (p * 100).toFixed(1) + "%" : p >= 0.001 ? (p * 100).toFixed(2) + "%" : (p * 100).toFixed(3) + "%";
+let modelContextLength = 131072; // real value filled in from /api/show below
+
+/* Same text can appear as several token ids — keep only its best entry. */
+function dedupCandidates(top) {
+  const byToken = new Map();
+  for (const t of top || []) {
+    const p = Math.exp(t.logprob);
+    if (!byToken.has(t.token) || byToken.get(t.token).p < p) {
+      byToken.set(t.token, { token: t.token, p });
+    }
+  }
+  return [...byToken.values()].sort((a, b) => b.p - a.p);
+}
 
 function selectLiveToken(idx) {
   if (idx < 0 || idx >= liveTokens.length) return;
@@ -320,15 +334,7 @@ function selectLiveToken(idx) {
     if (candidateUpdate3D) candidateUpdate3D([]);
     return;
   }
-  // Same text can appear as several token ids — keep only its best entry.
-  const byToken = new Map();
-  for (const t of entry.top) {
-    const p = Math.exp(t.logprob);
-    if (!byToken.has(t.token) || byToken.get(t.token).p < p) {
-      byToken.set(t.token, { token: t.token, p });
-    }
-  }
-  const cands = [...byToken.values()].sort((a, b) => b.p - a.p);
+  const cands = dedupCandidates(entry.top);
   let shown = 0;
   for (const c of cands) {
     shown += c.p;
@@ -362,6 +368,22 @@ function selectLiveToken(idx) {
     (chosenP > 0.9 ? ". Near-certain: barely a choice." :
      chosenP > 0.5 ? ". Fairly confident, but a real alternative existed." :
      ". A genuine coin-flip zone — another run could easily pick differently.");
+  // Expert debug for this token: logprob, top-1 margin, and the entropy of
+  // the choice (top candidates + "all others" as one lump — approximate).
+  const td = document.getElementById("tokenDebug");
+  if (td) {
+    let restP = Math.max(0, 1 - cands.reduce((s, c) => s + c.p, 0));
+    let hNats = 0;
+    for (const c of cands) if (c.p > 0) hNats -= c.p * Math.log(c.p);
+    if (restP > 0) hNats -= restP * Math.log(restP);
+    const margin = cands.length > 1 ? cands[0].p - cands[1].p : cands[0].p;
+    td.textContent = "Expert debug — token " + (idx + 1) + " “" + entry.token.trim() +
+      "”: chosen logprob " + (entry.chosenLogprob != null ? entry.chosenLogprob.toFixed(3) : "?") +
+      " nats (p = exp(logprob) = " + fmtPct(chosenP) + ") · top-1 margin " +
+      fmtPct(margin) + " over the runner-up · choice entropy ≈ " +
+      (hNats / Math.LN2).toFixed(2) + " bits (0 = certain, ~" +
+      (Math.log2(128256)).toFixed(1) + " bits would be a uniform pick over the whole vocabulary).";
+  }
   if (candidateUpdate3D) candidateUpdate3D(cands, entry.token);
 }
 
@@ -392,6 +414,65 @@ function renderDebug(final) {
     s.textContent = "+" + (ids.length - 240) + " more";
     idsBox.appendChild(s);
   }
+  renderDebugExtra(final);
+}
+
+/* Extra Expert debug: what each number teaches, not just the numbers. */
+function renderDebugExtra(final) {
+  const box = document.getElementById("debugExtra");
+  if (!box) return;
+  const ms = (ns) => (ns / 1e6).toFixed(0) + " ms";
+  const pctOf = (part, whole) => whole ? Math.round(part / whole * 100) + "%" : "?";
+  const total = final.total_duration || 0;
+  const ctxLen = (final.context || []).length;
+  const promptTps = final.prompt_eval_count && final.prompt_eval_duration
+    ? Math.round(final.prompt_eval_count / (final.prompt_eval_duration / 1e9)) : "?";
+  const chosenPs = liveTokens
+    .map((t) => t.chosenLogprob != null ? Math.exp(t.chosenLogprob) : null)
+    .filter((p) => p != null);
+  const avgP = chosenPs.length
+    ? chosenPs.reduce((s, p) => s + p, 0) / chosenPs.length : null;
+  const coinFlips = chosenPs.filter((p) => p < 0.5).length;
+  let mostUncertain = null;
+  liveTokens.forEach((t, i) => {
+    if (t.chosenLogprob == null) return;
+    const p = Math.exp(t.chosenLogprob);
+    if (!mostUncertain || p < mostUncertain.p) mostUncertain = { i, p, token: t.token };
+  });
+  const rows = [
+    ["Where the time went", "load " + ms(final.load_duration || 0) + " (" + pctOf(final.load_duration || 0, total) +
+      ") · reading your prompt " + ms(final.prompt_eval_duration || 0) + " (" + pctOf(final.prompt_eval_duration || 0, total) +
+      ") · generating " + ms(final.eval_duration || 0) + " (" + pctOf(final.eval_duration || 0, total) +
+      ") of " + ms(total) + " total. First runs pay the load cost; after that, generation dominates."],
+    ["Two different speeds", "prompt reading ran at ~" + promptTps + " tok/s (all prompt tokens processed in parallel), generation at " +
+      (final.eval_count && final.eval_duration ? (final.eval_count / (final.eval_duration / 1e9)).toFixed(1) : "?") +
+      " tok/s (strictly one token at a time — that serial loop is why generation is the slow part)."],
+    ["Context used", ctxLen + " of " + modelContextLength.toLocaleString() + " tokens (" +
+      (modelContextLength ? (ctxLen / modelContextLength * 100).toFixed(2) : "?") +
+      "% of the window) — prompt template, your prompt and the answer so far. Lesson 8 is what happens when this fills up."],
+    ["Why it stopped", "done_reason = “" + (final.done_reason || "?") + "”" +
+      (final.done_reason === "length" ? " — it hit this page's 80-token cap mid-thought, not a natural end." :
+       final.done_reason === "stop" ? " — the model emitted its end token: it decided it was finished." :
+       " — neither a natural stop nor the cap (for example, your Stop button).")],
+    ["How sure it was, overall", avgP != null
+      ? "the picked token averaged " + fmtPct(avgP) + " probability across " + chosenPs.length +
+        " picks, and " + coinFlips + " of them were coin-flip zone (picked token under 50%)." +
+        (mostUncertain ? " Most uncertain pick: token " + (mostUncertain.i + 1) + " “" +
+          mostUncertain.token.trim() + "” at " + fmtPct(mostUncertain.p) + " — click it in the answer to see its rivals." : "")
+      : "no logprobs were returned for this run."],
+    ["Settings in force", "temperature " + parseFloat(tempRange.value).toFixed(1) +
+      " (lesson 5's T, applied to every pick), max 80 new tokens per run (this page's cap)."],
+  ];
+  box.innerHTML = "";
+  for (const [title, body] of rows) {
+    const p = document.createElement("p");
+    p.className = "debug-row";
+    const b = document.createElement("b");
+    b.textContent = title + ": ";
+    p.appendChild(b);
+    p.appendChild(document.createTextNode(body));
+    box.appendChild(p);
+  }
 }
 
 async function fetchModelCard() {
@@ -404,6 +485,7 @@ async function fetchModelCard() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const d = await res.json();
     const mi = d.model_info || {};
+    if (mi["llama.context_length"]) modelContextLength = mi["llama.context_length"];
     const det = d.details || {};
     const facts = [
       ["Model", MODEL],
@@ -425,9 +507,11 @@ fetchModelCard();
 async function generate() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { showError("Write a prompt first."); return; }
+  const journeyStatus = document.getElementById("journeyStatus");
   if (!modelOnline) {
     output.textContent = "";
     offlineHelp.hidden = false;
+    if (journeyStatus) journeyStatus.textContent = "Model offline — start Ollama, then Re-check.";
     showError("The local model is offline. Follow the setup steps below, then Re-check.");
     return;
   }
@@ -442,6 +526,13 @@ async function generate() {
   generateBtn.disabled = true;
   stopBtn.disabled = false;
   currentAbort = new AbortController();
+  // The merged journey view rides on this same generation: animate the
+  // prompt's tokens rising, then show the first prediction's towers.
+  const promptTokens = splitTokens(prompt).filter((t) => !/^\s+$/.test(t)).slice(0, 10);
+  if (journeyStart3D) journeyStart3D(promptTokens);
+  if (journeySetCandidates3D) journeySetCandidates3D([], null);
+  if (journeyStatus) journeyStatus.textContent =
+    "Sending " + promptTokens.length + " tokens through the 16 layers…";
   const genStarted = performance.now();
   let chunkCount = 0;
   let finalData = null;
@@ -486,6 +577,11 @@ async function generate() {
           span.addEventListener("click", () => selectLiveToken(idx));
           output.appendChild(span);
           chunkCount++;
+          if (chunkCount === 1 && lp && journeySetCandidates3D) {
+            journeySetCandidates3D(dedupCandidates(lp.top_logprobs), lp.token);
+            if (journeyStatus) journeyStatus.textContent =
+              "First prediction is in the journey towers — model still writing…";
+          }
           spawnParticles(json.response.length);
           sndToken(chunkCount);
           if (lp) selectLiveToken(idx);
@@ -498,8 +594,10 @@ async function generate() {
   } catch (err) {
     if (err.name === "AbortError") {
       output.appendChild(document.createTextNode("\n[stopped]"));
+      if (journeyStatus) journeyStatus.textContent = "Stopped.";
     } else {
       showError("Generation failed: " + err.message);
+      if (journeyStatus) journeyStatus.textContent = "Generation failed: " + err.message;
       checkModel();
     }
   } finally {
@@ -508,6 +606,8 @@ async function generate() {
     currentAbort = null;
     const secs = ((performance.now() - genStarted) / 1000).toFixed(1);
     if (chunkCount > 0) {
+      if (journeyStatus) journeyStatus.textContent =
+        "Done — the journey towers show the first prediction; click any token in the answer to inspect its own candidates.";
       document.getElementById("liveStats").textContent = finalData && finalData.eval_duration
         ? chunkCount + " tokens · " + secs + "s wall-clock · " +
           (finalData.eval_count / (finalData.eval_duration / 1e9)).toFixed(1) +
@@ -694,7 +794,7 @@ async function initCandidate3D() {
 }
 initCandidate3D();
 
-/* ---------- Showcase: live token journey through 16 layers in 3D ---------- */
+/* ---------- Lesson 10: live token journey through 16 layers in 3D ---------- */
 let journeyStart3D = null;
 let journeySetCandidates3D = null;
 
@@ -932,81 +1032,6 @@ async function initJourneyLive3D() {
 }
 initJourneyLive3D();
 
-const journeyBtn = document.getElementById("journeyBtn");
-const journeyStatus = document.getElementById("journeyStatus");
-const journeyOut = document.getElementById("journeyOut");
-journeyBtn.addEventListener("click", async () => {
-  const prompt = document.getElementById("journeyPrompt").value.trim();
-  if (!prompt) { showError("Write a prompt first."); return; }
-  if (!modelOnline) {
-    showError("The local model is offline. Start Ollama, then Re-check in lesson 10.");
-    journeyStatus.textContent = "Model offline.";
-    return;
-  }
-  const tokens = splitTokens(prompt).filter((t) => !/^\s+$/.test(t)).slice(0, 10);
-  if (journeyStart3D) journeyStart3D(tokens);
-  if (journeySetCandidates3D) journeySetCandidates3D([], null);
-  journeyOut.textContent = "";
-  journeyBtn.disabled = true;
-  journeyStatus.textContent = "Sending " + tokens.length + " tokens through the layers…";
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 90000);
-  let first = true;
-  try {
-    const res = await fetch(OLLAMA + "/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL, prompt, stream: true,
-        logprobs: true, top_logprobs: 5,
-        options: { temperature: parseFloat(tempRange.value), num_predict: 48 },
-      }),
-    });
-    if (!res.ok) throw new Error("Model returned HTTP " + res.status);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const json = JSON.parse(line);
-        if (json.response) {
-          journeyOut.textContent += json.response;
-          if (first) {
-            first = false;
-            const lp = (json.logprobs || [])[0];
-            if (lp && journeySetCandidates3D) {
-              const byToken = new Map();
-              for (const t of lp.top_logprobs) {
-                const p = Math.exp(t.logprob);
-                if (!byToken.has(t.token) || byToken.get(t.token).p < p) {
-                  byToken.set(t.token, { token: t.token, p });
-                }
-              }
-              journeySetCandidates3D(
-                [...byToken.values()].sort((a, b) => b.p - a.p), lp.token);
-            }
-            journeyStatus.textContent = "First prediction is in the towers — model still writing…";
-            sndToken(1);
-          }
-        }
-      }
-    }
-    journeyStatus.textContent = "Done. Towers show the first prediction; every token is analysed in lesson 10.";
-    sndDone();
-  } catch (err) {
-    journeyStatus.textContent = "Generation failed: " + err.message;
-  } finally {
-    clearTimeout(timeout);
-    journeyBtn.disabled = false;
-  }
-});
 
 /* ---------- Lesson 3: attention (schematic teaching data) ---------- */
 const ATTN_WORDS = ["The", "cat", "sat", "on", "the", "mat", "because", "it", "was", "tired"];

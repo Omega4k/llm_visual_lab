@@ -14,6 +14,7 @@
 </head>
 <body class="level-beginner">
 <header class="topbar">
+  <button id="menuBtn" type="button" aria-expanded="false" aria-controls="sidebar">Lessons</button>
   <div>
     <h1>LLM Visual Lab</h1>
     <p class="tagline">See how a language model reads, thinks in vectors, and predicts the next token.</p>
@@ -24,27 +25,6 @@
     <button id="recheckBtn" type="button">Re-check</button>
   </div>
 </header>
-
-<div class="sticky-bar">
-  <div class="level-switch" role="group" aria-label="Knowledge level">
-    <button id="menuBtn" type="button" aria-expanded="false" aria-controls="sidebar">Lessons</button>
-    <span class="level-label">Level</span>
-    <button type="button" data-set-level="beginner" class="level-btn active">Beginner</button>
-    <button type="button" data-set-level="medium" class="level-btn">Medium</button>
-    <button type="button" data-set-level="expert" class="level-btn">Expert</button>
-    <button id="soundBtn" type="button" aria-pressed="false">Sound: off</button>
-    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/10</span></button>
-    <label class="theme-label">Theme
-      <select id="themeSelect">
-        <option value="amber">Amber</option>
-        <option value="ice">Ice</option>
-        <option value="emerald">Emerald</option>
-        <option value="rose">Rose</option>
-      </select>
-    </label>
-    <span class="sticky-status"><span class="dot dot-unknown" id="stickyDot"></span><span id="stickyStatus">Model…</span></span>
-  </div>
-</div>
 
 <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
 <div class="layout">
@@ -64,6 +44,27 @@
     <a href="#showcase">★ Live journey</a>
   </nav>
   <div class="sidebar-progress"><span id="progressLabel">Progress 0/10</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
+  <div class="sidebar-settings">
+    <p class="sidebar-title">Settings</p>
+    <div class="level-switch" role="group" aria-label="Knowledge level">
+      <span class="level-label">Level</span>
+      <div class="level-btns">
+        <button type="button" data-set-level="beginner" class="level-btn active">Beginner</button>
+        <button type="button" data-set-level="medium" class="level-btn">Medium</button>
+        <button type="button" data-set-level="expert" class="level-btn">Expert</button>
+      </div>
+    </div>
+    <button id="soundBtn" type="button" aria-pressed="false">Sound: off</button>
+    <label class="theme-label">Theme
+      <select id="themeSelect">
+        <option value="amber">Amber</option>
+        <option value="ice">Ice</option>
+        <option value="emerald">Emerald</option>
+        <option value="rose">Rose</option>
+      </select>
+    </label>
+    <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/10</span></button>
+  </div>
 </aside>
 
 <main>

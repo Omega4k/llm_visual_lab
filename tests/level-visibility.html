@@ -54,6 +54,27 @@ document.getElementById("f").addEventListener("load", async () => {
     }
   }
 
+  // Settings live in the sidebar, not a top bar.
+  const sidebarEl = doc.getElementById("sidebar");
+  check("no top sticky bar remains", !doc.querySelector(".sticky-bar"));
+  check("level/sound/theme/quiz controls are inside the sidebar",
+    ["[data-set-level='expert']", "#soundBtn", "#themeSelect", "#quizOpenBtn"]
+      .every((sel) => sidebarEl.contains(doc.querySelector(sel))));
+  doc.getElementById("soundBtn").click();
+  check("sound toggle works from sidebar",
+    doc.getElementById("soundBtn").getAttribute("aria-pressed") === "true");
+  doc.getElementById("soundBtn").click();
+  const themeSel = doc.getElementById("themeSelect");
+  themeSel.value = "ice";
+  themeSel.dispatchEvent(new win.Event("change"));
+  check("theme switch works from sidebar", doc.body.classList.contains("theme-ice"));
+  themeSel.value = "amber";
+  themeSel.dispatchEvent(new win.Event("change"));
+  doc.getElementById("quizOpenBtn").click();
+  check("quiz drawer opens from sidebar",
+    doc.getElementById("quizDrawer").classList.contains("open"));
+  doc.getElementById("quizCloseBtn").click();
+
   // A 3D canvas created while its lesson was hidden must get a real size
   // when the lesson is shown (view switching re-fires window resize).
   doc.querySelector('.lesson-nav a[href="#embeddings"]').click();

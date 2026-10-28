@@ -274,8 +274,6 @@ async function checkModel() {
     const names = (data.models || []).map((m) => m.name);
     modelOnline = true;
     statusDot.className = "dot dot-on";
-    document.getElementById("stickyDot").className = "dot dot-on";
-    document.getElementById("stickyStatus").textContent = names.length ? "Model online" : "No model pulled";
     statusText.textContent = names.length
       ? "Local model online: " + names.join(", ")
       : "Ollama online — no models pulled yet";
@@ -284,8 +282,6 @@ async function checkModel() {
   } catch (err) {
     modelOnline = false;
     statusDot.className = "dot dot-off";
-    document.getElementById("stickyDot").className = "dot dot-off";
-    document.getElementById("stickyStatus").textContent = "Model offline";
     statusText.textContent = "Local model offline";
     offlineHelp.hidden = false;
   }

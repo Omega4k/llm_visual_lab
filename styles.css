@@ -51,8 +51,8 @@ main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
 }
 .layout main { margin: 0 auto; width: 100%; }
 .sidebar {
-  position: sticky; top: 4.2rem; padding: 1.2rem 0.6rem 1.2rem 2rem;
-  max-height: calc(100vh - 4.2rem); overflow-y: auto;
+  position: sticky; top: 1rem; padding: 1.2rem 0.6rem 1.2rem 2rem;
+  max-height: calc(100vh - 2rem); overflow-y: auto;
 }
 .sidebar-title {
   font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
@@ -68,6 +68,15 @@ main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
   display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;
   font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap;
 }
+.sidebar-settings { margin-top: 1.4rem; border-top: 1px dashed var(--panel-edge); padding-top: 1rem; }
+.sidebar-settings .level-switch {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0.4rem;
+  width: auto; padding: 0; margin: 0 0 0.7rem;
+}
+.level-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.level-btns .level-btn { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
+.sidebar-settings #soundBtn, .sidebar-settings #quizOpenBtn { margin-bottom: 0.7rem; }
+.sidebar-settings .theme-label { display: flex; margin-bottom: 0.7rem; }
 #menuBtn { display: none; background: var(--control); color: var(--text); font-weight: 600; padding: 0.4rem 0.9rem; }
 .sidebar-scrim { position: fixed; inset: 0; background: rgba(4, 8, 12, 0.55); z-index: 85; }
 main > section.panel { display: none; }
@@ -217,19 +226,6 @@ select {
 }
 .panel::before { top: 6px; left: 6px; border-width: 2px 0 0 2px; }
 .panel::after { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; }
-.sticky-bar {
-  position: sticky; top: 0; z-index: 60;
-  background: rgba(20, 24, 29, 0.97); border-bottom: 2px solid var(--accent-dark);
-  padding: 0.55rem 2rem 0.6rem;
-}
-.sticky-bar .level-switch {
-  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
-}
-.sticky-bar .lesson-nav { padding: 0.5rem 0 0; flex-wrap: nowrap; overflow-x: auto; }
-.sticky-status {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem;
-  font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap;
-}
 .progress-track {
   width: 90px; height: 8px; background: var(--inset); border-radius: 4px;
   overflow: hidden; display: inline-block;
@@ -343,7 +339,6 @@ textarea, .output, .ctx-window, .story, .gauge, .math-box,
 .ctx-token { background: var(--ctx-bg); }
 .layer-block.done { background: var(--done-bg); }
 .telemetry, .level-label, .gauge-label, .theme-label { color: var(--label-dim); }
-.sticky-bar { background: var(--bg); }
 .lvl { display: none; }
 body.level-beginner .lvl-b { display: inline; }
 body.level-medium .lvl-m { display: inline; }
@@ -404,8 +399,6 @@ body.level-expert .lvl-add-m, body.level-expert .lvl-add-e { display: block; }
 .trap-btn:hover { background: #47525f; }
 @media (max-width: 640px) {
   .topbar, main, footer { padding-left: 1rem; padding-right: 1rem; }
-  .sticky-bar { padding-left: 1rem; padding-right: 1rem; }
-  .lesson-nav { padding-left: 1rem; }
   .canvas-box { height: 300px; }
 }
 @media (prefers-reduced-motion: reduce) {

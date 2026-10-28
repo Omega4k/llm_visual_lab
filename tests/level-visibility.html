@@ -95,6 +95,37 @@ document.getElementById("f").addEventListener("load", async () => {
   check("model card moved into debug panel", dbg.contains(doc.getElementById("modelCard")));
   doc.querySelector('[data-set-level="beginner"]').click();
 
+  // New interactive graphics.
+  doc.querySelector('.lesson-nav a[href="#tokens"]').click();
+  check("tokens: echo line mirrors the chips",
+    doc.querySelectorAll("#tokenEcho .echo-tok").length > 0 &&
+    doc.querySelectorAll("#tokenRow .token").length > 0);
+  doc.querySelector(".preset-btn").click();
+  check("tokens: surprise preset fills the input",
+    doc.getElementById("tokenInput").value.includes("Antidisestablishmentarianism"));
+  doc.querySelector('.lesson-nav a[href="#journey"]').click();
+  check("journey: sharpening chart explains itself",
+    doc.getElementById("sharpNote").textContent.includes("layer 0") &&
+    doc.getElementById("sharpNote").textContent.includes("layer 15"));
+  doc.querySelector('.lesson-nav a[href="#context"]').click();
+  doc.getElementById("ctxAddBtn").click();
+  doc.getElementById("ctxAddBtn").click();
+  doc.getElementById("ctxAddBtn").click();
+  check("context: overflow shows the just-forgotten tokens",
+    !doc.getElementById("ctxGhostRow").hidden &&
+    doc.getElementById("ctxGhost").textContent.length > 0 &&
+    doc.querySelectorAll("#ctxWindow .ctx-risk").length > 0);
+  doc.getElementById("ctxResetBtn").click();
+  doc.querySelector('.lesson-nav a[href="#limits"]').click();
+  const predBtn = doc.querySelector('[data-trap-row="maths"] .trap-pred[data-pred="fall"]');
+  predBtn.click();
+  check("limits: prediction locks in on the scoreboard",
+    predBtn.classList.contains("active"));
+  doc.getElementById("trapResetBtn").click();
+  check("limits: scoreboard resets",
+    !predBtn.classList.contains("active") &&
+    doc.getElementById("trapTally").textContent.includes("0 of 0"));
+
   // A 3D canvas created while its lesson was hidden must get a real size
   // when the lesson is shown (view switching re-fires window resize).
   doc.querySelector('.lesson-nav a[href="#embeddings"]').click();

@@ -72,7 +72,16 @@
     <p>A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</p>
     <label for="tokenInput">Your text</label>
     <textarea id="tokenInput" rows="3">The quick brown fox jumps over the lazy dog.</textarea>
+    <div class="controls preset-row">
+      <span class="hint">Try a surprise:</span>
+      <button type="button" class="preset-btn" data-text="Unbelievable! Antidisestablishmentarianism?">Very long words</button>
+      <button type="button" class="preset-btn" data-text="Call 0123456789 or pay $19.99 in 2026">Numbers &amp; money</button>
+      <button type="button" class="preset-btn" data-text="Rockets 🚀✨ and smileys 😀😀😀">Emoji</button>
+      <button type="button" class="preset-btn" data-text="WHY IS EVERYTHING SHOUTING? don't split me">CAPS &amp; contractions</button>
+    </div>
+    <p class="token-echo" id="tokenEcho" aria-label="Your text with token boundaries highlighted"></p>
     <div class="token-row" id="tokenRow" aria-live="polite"></div>
+    <p class="hint">Hover a coloured piece — the same piece lights up in the line above, so you can see exactly which characters each token covers.</p>
     <p class="stats"><span id="tokenCount">0</span> tokens · <span id="charCount">0</span> characters
     · ≈ <span id="ratio">0</span> characters per token</p>
     <p class="note">This splitter is a teaching approximation. The real tokenizer is learned
@@ -228,6 +237,9 @@
         <div class="attn-weights" id="journeyPred"></div>
       </div>
     </div>
+    <h3>How the prediction sharpens, layer by layer</h3>
+    <canvas id="sharpCanvas" class="sharp-canvas" width="720" height="190"></canvas>
+    <p class="hint" id="sharpNote"></p>
     <p class="note">Schematic teaching model — the real model stacks layers like this sketch,
     but the Ollama API does not expose its real internal numbers, so these values are illustrative,
     shaped like real behaviour: early layers handle position and neighbours, middle layers resolve
@@ -289,6 +301,7 @@
     <p>The model can only remember a limited amount of your conversation. When too much has been said, the oldest words fall away and are forgotten — it can't miss them, because for the model they no longer exist. Add sentences and watch the beginning disappear.</p>
     <div class="ctx-window" id="ctxWindow" aria-live="polite"></div>
     <p class="stats"><span id="ctxCount">0</span> / 18 tokens in window · <span id="ctxDropped">0</span> tokens forgotten</p>
+    <p class="stats ctx-ghost-row" id="ctxGhostRow" hidden>Just pushed out: <span id="ctxGhost"></span></p>
     <div class="gauge" aria-hidden="true"><div class="gauge-fill" id="ctxGaugeFill"></div></div>
     <p class="gauge-label">Context window fill</p>
     <label for="ctxInput">Add to the conversation</label>
@@ -308,10 +321,41 @@
     <h2>9 · Limits — confident, plausible, wrong</h2>
     <p>The model tries to say things that <em>sound</em> right — which is not the same as <em>being</em> right. When it doesn't know, it often makes things up, confidently. Each button below loads a trap question into the live model; guess what will happen before you run it.</p>
     <div class="controls trap-row">
-      <button type="button" class="trap-btn" data-prompt="How many letter r's are in the word strawberry? Answer with just the number.">The letter-count trap</button>
-      <button type="button" class="trap-btn" data-prompt="Give me a real scientific paper, with authors and year, proving that goldfish have a 3-second memory.">The fake-citation trap</button>
-      <button type="button" class="trap-btn" data-prompt="A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Explain step by step.">The rushed-maths trap</button>
+      <button type="button" class="trap-btn" data-trap="letters" data-prompt="How many letter r's are in the word strawberry? Answer with just the number.">The letter-count trap</button>
+      <button type="button" class="trap-btn" data-trap="citation" data-prompt="Give me a real scientific paper, with authors and year, proving that goldfish have a 3-second memory.">The fake-citation trap</button>
+      <button type="button" class="trap-btn" data-trap="maths" data-prompt="A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Explain step by step.">The rushed-maths trap</button>
     </div>
+    <h3>Trap scoreboard — call it before you run it</h3>
+    <p class="hint">For each trap: make your prediction, then run the trap in lesson 10. When the
+    answer finishes, the result is auto-judged here (a heuristic — check the answer yourself too).</p>
+    <div class="trap-score" id="trapScore">
+      <div class="trap-score-row" data-trap-row="letters">
+        <span class="trap-name">Letter-count</span>
+        <span class="trap-preds">
+          <button type="button" class="trap-pred" data-pred="fall">Falls for it</button>
+          <button type="button" class="trap-pred" data-pred="survive">Gets it right</button>
+        </span>
+        <span class="trap-status">Not run yet</span>
+      </div>
+      <div class="trap-score-row" data-trap-row="citation">
+        <span class="trap-name">Fake citation</span>
+        <span class="trap-preds">
+          <button type="button" class="trap-pred" data-pred="fall">Falls for it</button>
+          <button type="button" class="trap-pred" data-pred="survive">Gets it right</button>
+        </span>
+        <span class="trap-status">Not run yet</span>
+      </div>
+      <div class="trap-score-row" data-trap-row="maths">
+        <span class="trap-name">Rushed maths</span>
+        <span class="trap-preds">
+          <button type="button" class="trap-pred" data-pred="fall">Falls for it</button>
+          <button type="button" class="trap-pred" data-pred="survive">Gets it right</button>
+        </span>
+        <span class="trap-status">Not run yet</span>
+      </div>
+    </div>
+    <p class="stats" id="trapTally">Predictions correct: 0 of 0 traps judged.</p>
+    <button type="button" id="trapResetBtn">Reset scoreboard</button>
     <p class="note">Why it fails: counting needs letters, but the model sees tokens (lesson 1);
     citations are easy to imitate without existing; and the maths answer that “sounds right”
     (10 cents) out-competes the correct one (5 cents) unless the model slows down.

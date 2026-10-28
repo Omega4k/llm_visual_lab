@@ -234,26 +234,68 @@ function splitTokens(text) {
   return out;
 }
 
+/* Tokens with their character offsets, so chips can be linked to the
+   exact characters they cover in the sentence. Same rules as splitTokens. */
+function splitTokensWithOffsets(text) {
+  const pieces = text.matchAll(/[A-Za-z]+|[0-9]+|[^\sA-Za-z0-9]|\s+/g);
+  const out = [];
+  for (const m of pieces) {
+    const p = m[0];
+    if (/^[A-Za-z]{9,}$/.test(p)) {
+      for (let i = 0; i < p.length; i += 4) {
+        out.push({ tok: p.slice(i, i + 4), start: m.index + i, end: m.index + i + 4 });
+      }
+    } else {
+      out.push({ tok: p, start: m.index, end: m.index + p.length });
+    }
+  }
+  return out;
+}
+
 function renderTokens() {
   const text = tokenInput.value;
-  const tokens = splitTokens(text);
+  const tokens = splitTokensWithOffsets(text);
+  const echo = document.getElementById("tokenEcho");
   tokenRow.innerHTML = "";
-  tokens.forEach((tok, i) => {
+  echo.innerHTML = "";
+  const link = (idx, on) => {
+    tokenRow.querySelectorAll(".token").forEach((el) =>
+      el.classList.toggle("linked", on && Number(el.dataset.idx) === idx));
+    echo.querySelectorAll(".echo-tok").forEach((el) =>
+      el.classList.toggle("linked", on && Number(el.dataset.idx) === idx));
+  };
+  tokens.forEach(({ tok, start, end }, i) => {
+    const es = document.createElement("span");
+    es.className = "echo-tok";
+    es.dataset.idx = i;
+    es.textContent = text.slice(start, end);
+    if (!/^\s+$/.test(tok)) es.style.background = PALETTE[i % PALETTE.length];
+    es.addEventListener("pointerenter", () => link(i, true));
+    es.addEventListener("pointerleave", () => link(i, false));
+    echo.appendChild(es);
     if (/^\s+$/.test(tok)) return;
     const span = document.createElement("span");
     span.className = "token";
+    span.dataset.idx = i;
     span.style.background = PALETTE[i % PALETTE.length];
     span.textContent = tok.replace(/ /g, "␣");
-    span.title = "token " + (i + 1);
+    span.title = "token " + (i + 1) + " — characters " + (start + 1) + "–" + end;
+    span.addEventListener("pointerenter", () => link(i, true));
+    span.addEventListener("pointerleave", () => link(i, false));
     tokenRow.appendChild(span);
   });
-  const visible = tokens.filter((t) => !/^\s+$/.test(t)).length;
+  const visible = tokens.filter((t) => !/^\s+$/.test(t.tok)).length;
   document.getElementById("tokenCount").textContent = visible;
   document.getElementById("charCount").textContent = text.length;
   document.getElementById("ratio").textContent =
     visible ? (text.length / visible).toFixed(1) : "0";
 }
 tokenInput.addEventListener("input", renderTokens);
+document.querySelectorAll(".preset-btn").forEach((btn) =>
+  btn.addEventListener("click", () => {
+    tokenInput.value = btn.dataset.text;
+    renderTokens();
+  }));
 renderTokens();
 
 /* ---------- Model status ---------- */
@@ -590,7 +632,10 @@ async function generate() {
       }
     }
     if (!output.textContent) output.textContent = "(the model returned nothing — try a different prompt)";
-    if (finalData) renderDebug(finalData);
+    if (finalData) {
+      renderDebug(finalData);
+      judgePendingTrap(output.textContent);
+    }
   } catch (err) {
     if (err.name === "AbortError") {
       output.appendChild(document.createTextNode("\n[stopped]"));
@@ -1271,16 +1316,23 @@ const CTX_SIZE = 18;
 let ctxTokens = ["Hello,", "my", "name", "is", "Alex."];
 let ctxDropped = 0;
 const ctxWindowEl = document.getElementById("ctxWindow");
-function renderContext() {
+let ctxGhost = [];
+function renderContext(newCount) {
   ctxWindowEl.innerHTML = "";
+  const full = ctxTokens.length >= CTX_SIZE;
   ctxTokens.forEach((tok, i) => {
     const span = document.createElement("span");
-    span.className = "ctx-token" + (i < 5 ? " old" : "");
+    span.className = "ctx-token" + (i < 5 ? " old" : "") +
+      (newCount && i >= ctxTokens.length - newCount ? " ctx-new" : "") +
+      (full && i < 3 ? " ctx-risk" : "");
     span.textContent = tok;
     ctxWindowEl.appendChild(span);
   });
   document.getElementById("ctxCount").textContent = ctxTokens.length;
   document.getElementById("ctxDropped").textContent = ctxDropped;
+  const ghostRow = document.getElementById("ctxGhostRow");
+  ghostRow.hidden = !ctxGhost.length;
+  document.getElementById("ctxGhost").textContent = ctxGhost.join(" ");
   const fill = document.getElementById("ctxGaugeFill");
   const pct = Math.round((ctxTokens.length / CTX_SIZE) * 100);
   fill.style.width = pct + "%";
@@ -1290,27 +1342,112 @@ document.getElementById("ctxAddBtn").addEventListener("click", () => {
   const words = document.getElementById("ctxInput").value.trim().split(/\s+/).filter(Boolean);
   ctxTokens = ctxTokens.concat(words);
   if (ctxTokens.length > CTX_SIZE) {
-    ctxDropped += ctxTokens.length - CTX_SIZE;
+    ctxGhost = ctxTokens.slice(0, ctxTokens.length - CTX_SIZE);
+    ctxDropped += ctxGhost.length;
     ctxTokens = ctxTokens.slice(ctxTokens.length - CTX_SIZE);
   }
-  renderContext();
+  renderContext(words.length);
 });
 document.getElementById("ctxResetBtn").addEventListener("click", () => {
   ctxTokens = ["Hello,", "my", "name", "is", "Alex."];
   ctxDropped = 0;
-  renderContext();
+  ctxGhost = [];
+  renderContext(0);
 });
 renderContext();
 
-/* ---------- Lesson 7: trap buttons load the live prompt ---------- */
+/* ---------- Lesson 9: trap scoreboard — predict, run, auto-judge ---------- */
+const TRAP_NAMES = { letters: "Letter-count", citation: "Fake citation", maths: "Rushed maths" };
+let trapState = {};
+try { trapState = JSON.parse(localStorage.getItem("llmLabTraps") || "{}"); } catch (e) { trapState = {}; }
+function saveTraps() {
+  try { localStorage.setItem("llmLabTraps", JSON.stringify(trapState)); } catch (e) {}
+}
+function renderTrapScore() {
+  let judged = 0, correct = 0;
+  document.querySelectorAll("[data-trap-row]").forEach((row) => {
+    const key = row.dataset.trapRow;
+    const st = trapState[key] || {};
+    row.querySelectorAll(".trap-pred").forEach((b) =>
+      b.classList.toggle("active", st.pred === b.dataset.pred));
+    const status = row.querySelector(".trap-status");
+    status.className = "trap-status" +
+      (st.result === "fall" ? " fell" : st.result === "survive" ? " survived" : "");
+    status.textContent =
+      st.result === "fall" ? "Model fell for it" + (st.pred ? (st.pred === "fall" ? " — you called it ✓" : " — you didn't see it coming") : "") :
+      st.result === "survive" ? "Model got it right" + (st.pred ? (st.pred === "survive" ? " — you called it ✓" : " — tougher than you thought") : "") :
+      st.pred ? "Prediction locked in — now run it" : "Not run yet";
+    if (st.result) {
+      judged++;
+      if (st.pred && st.pred === st.result) correct++;
+    }
+  });
+  document.getElementById("trapTally").textContent =
+    "Predictions correct: " + correct + " of " + judged + " traps judged.";
+}
+document.querySelectorAll("[data-trap-row] .trap-pred").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.closest("[data-trap-row]").dataset.trapRow;
+    trapState[key] = { ...(trapState[key] || {}), pred: btn.dataset.pred };
+    saveTraps();
+    renderTrapScore();
+  });
+});
+document.getElementById("trapResetBtn").addEventListener("click", () => {
+  trapState = {};
+  saveTraps();
+  renderTrapScore();
+});
 document.querySelectorAll(".trap-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
+    const key = btn.dataset.trap;
+    if (key) {
+      try { localStorage.setItem("llmLabPendingTrap", key); } catch (e) {}
+    }
     document.getElementById("promptInput").value = btn.dataset.prompt;
     if (location.hash === "#playground") showLesson("playground");
     else location.hash = "playground";
-    showError("Trap loaded in lesson 10 — press Generate when you have made your prediction.");
+    const st = trapState[key] || {};
+    showError(st.pred
+      ? "Trap loaded in lesson 10 — prediction locked in. Press Generate."
+      : "Trap loaded in lesson 10 — next time, make a prediction in lesson 9 first. Press Generate.");
   });
 });
+
+/* Heuristic judges. Deliberately simple — the scoreboard says so. */
+function judgeTrap(key, text) {
+  const t = " " + text.toLowerCase() + " ";
+  if (key === "letters") {
+    const nums = t.match(/\d+/g);
+    return nums && Number(nums[0]) === 3 ? "survive" : "fall";
+  }
+  if (key === "maths") {
+    const five = Math.max(t.lastIndexOf("5 cents"), t.lastIndexOf("0.05"), t.lastIndexOf("$0.05"), t.lastIndexOf("five cents"));
+    const ten = Math.max(t.lastIndexOf("10 cents"), t.lastIndexOf("0.10"), t.lastIndexOf("$0.10"), t.lastIndexOf("ten cents"));
+    return five > ten ? "survive" : "fall";
+  }
+  if (key === "citation") {
+    if (/no (scientific )?(paper|evidence|study|proof)|myth|misconception|cannot (find|provide)|doesn'?t exist|not (true|supported|accurate)/.test(t)) return "survive";
+    if (/((19|20)\d\d)/.test(t)) return "fall"; // presented a dated "paper"
+    return "fall";
+  }
+  return null;
+}
+function judgePendingTrap(answerText) {
+  let key = null;
+  try { key = localStorage.getItem("llmLabPendingTrap"); } catch (e) {}
+  if (!key || !TRAP_NAMES[key]) return;
+  try { localStorage.removeItem("llmLabPendingTrap"); } catch (e) {}
+  const result = judgeTrap(key, answerText);
+  if (!result) return;
+  trapState[key] = { ...(trapState[key] || {}), result };
+  saveTraps();
+  renderTrapScore();
+  showError("Trap judged: the model " +
+    (result === "fall" ? "fell for it" : "got it right") +
+    " (" + TRAP_NAMES[key] + "). See your scoreboard in lesson 9.");
+}
+renderTrapScore();
 
 /* ---------- Lesson 6: inside the model — journey of a token ---------- */
 const journeyTokenSel = document.getElementById("journeyToken");
@@ -1358,6 +1495,70 @@ function barRow(container, name, frac, pctText, fillClass) {
   container.appendChild(row);
 }
 
+/* What the token would predict if it had to answer at this layer. */
+function journeyPredAt(tokenIdx, layer) {
+  const nextWord = tokenIdx < ATTN_WORDS.length - 1 ? ATTN_WORDS[tokenIdx + 1] : ".";
+  const confidence = 0.16 + (layer / 15) * 0.62;
+  return [[nextWord, confidence], ["the", 0.30 - (layer / 15) * 0.18],
+    ["a", 0.18 - (layer / 15) * 0.08], ["cat", 0.14]]
+    .sort((a, b) => b[1] - a[1]);
+}
+
+/* The sharpening chart: top-1 probability across all 16 layers, with the
+   marker on the layer currently being viewed. */
+function drawSharpChart(tokenIdx, layer) {
+  const cv = document.getElementById("sharpCanvas");
+  if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, L = 44, R = 14, T = 14, B = 30;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#a8b0ba";
+  ctx.font = "11px Consolas, monospace";
+  ctx.strokeStyle = "#313a46";
+  ctx.beginPath();
+  ctx.moveTo(L, T); ctx.lineTo(L, H - B); ctx.lineTo(W - R, H - B);
+  ctx.stroke();
+  for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
+    const y = T + (1 - frac) * (H - T - B);
+    ctx.strokeStyle = "#232b35";
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - R, y); ctx.stroke();
+    ctx.fillText(Math.round(frac * 100) + "%", 8, y + 4);
+  }
+  ctx.fillText("layer 0", L, H - 10);
+  ctx.fillText("layer 15", W - R - 44, H - 10);
+  const pts = [];
+  for (let l = 0; l < 16; l++) {
+    const [tok, p] = journeyPredAt(tokenIdx, l)[0];
+    pts.push({ l, tok, p,
+      x: L + (l / 15) * (W - L - R),
+      y: T + (1 - p) * (H - T - B) });
+  }
+  ctx.strokeStyle = "#22d3ee";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  pts.forEach((pt, i) => i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  let prevTok = null;
+  for (const pt of pts) {
+    const changed = prevTok !== null && pt.tok !== prevTok;
+    ctx.fillStyle = pt.l === layer ? "#e0a458" : changed ? "#fb7185" : "#22d3ee";
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.l === layer ? 5 : 3, 0, Math.PI * 2);
+    ctx.fill();
+    prevTok = pt.tok;
+  }
+  const cur = pts[layer];
+  ctx.strokeStyle = "rgba(224, 164, 88, 0.5)";
+  ctx.beginPath(); ctx.moveTo(cur.x, T); ctx.lineTo(cur.x, H - B); ctx.stroke();
+  const first = pts[0], last = pts[15];
+  document.getElementById("sharpNote").textContent =
+    "If it had to answer at layer 0, the best guess would be “" + first.tok + "” at " +
+    Math.round(first.p * 100) + "%. By layer 15 the leader is “" + last.tok + "” at " +
+    Math.round(last.p * 100) + "%. Pink dots are where the leading word changes — " +
+    "early layers are still guessing grammar words; the real answer only takes the lead as context arrives.";
+}
+
 function renderJourney() {
   const tokenIdx = Number(journeyTokenSel.value);
   const layer = Number(document.getElementById("journeyLayer").value);
@@ -1396,10 +1597,7 @@ function renderJourney() {
 
   const predEl = document.getElementById("journeyPred");
   predEl.innerHTML = "";
-  const nextWord = tokenIdx < ATTN_WORDS.length - 1 ? ATTN_WORDS[tokenIdx + 1] : ".";
-  const confidence = 0.16 + (layer / 15) * 0.62;
-  [[nextWord, confidence], ["the", 0.30 - (layer / 15) * 0.18], ["a", 0.18 - (layer / 15) * 0.08], ["cat", 0.14]]
-    .sort((a, b) => b[1] - a[1])
+  journeyPredAt(tokenIdx, layer)
     .forEach(([tok, p]) => {
       const row = document.createElement("div");
       row.className = "attn-weight";
@@ -1409,6 +1607,7 @@ function renderJourney() {
       row.children[2].textContent = Math.round(p * 100) + "%";
       predEl.appendChild(row);
     });
+  drawSharpChart(tokenIdx, layer);
 }
 journeyTokenSel.addEventListener("change", renderJourney);
 document.getElementById("journeyLayer").addEventListener("input", renderJourney);

@@ -108,6 +108,16 @@ textarea {
   padding: 0.6rem 0.7rem; font: inherit; resize: vertical;
 }
 textarea:focus { outline: 2px solid var(--accent-dark); }
+.preset-btn { background: var(--control); color: var(--text); font-weight: 500; padding: 0.35rem 0.75rem; font-size: 0.88rem; }
+.preset-btn:hover { background: var(--control-hover); }
+.token-echo {
+  font-family: var(--mono); font-size: 1.02rem; line-height: 1.9;
+  background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 6px;
+  padding: 0.45rem 0.7rem; margin: 0.9rem 0 0; white-space: pre-wrap; word-break: break-word;
+}
+.echo-tok { border-radius: 3px; padding: 0.08rem 0.05rem; color: #14181d; }
+.echo-tok.linked, .token.linked { outline: 2px solid var(--text); outline-offset: 1px; }
+.sharp-canvas { width: 100%; height: auto; background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 8px; }
 .token-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 1rem 0 0.6rem; min-height: 2rem; }
 .token {
   font-family: var(--mono); font-size: 0.88rem; padding: 0.2rem 0.5rem;
@@ -400,10 +410,29 @@ body.level-expert .lvl-add-m, body.level-expert .lvl-add-e { display: block; }
   padding: 0.18rem 0.5rem; border-radius: 4px;
 }
 .ctx-token.old { background: #4a3a2f; }
+.ctx-token.ctx-new { animation: ctx-in 0.45s ease-out; }
+.ctx-token.ctx-risk { animation: ctx-risk 1.5s ease-in-out infinite alternate; }
+@keyframes ctx-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ctx-risk { from { opacity: 1; } to { opacity: 0.45; } }
+.ctx-ghost-row #ctxGhost { text-decoration: line-through; opacity: 0.75; }
 #ctxResetBtn { background: #3a434f; color: var(--text); }
 .trap-row { align-items: stretch; }
 .trap-btn { background: #3a434f; color: var(--text); font-weight: 500; }
 .trap-btn:hover { background: #47525f; }
+.trap-score { display: grid; gap: 0.5rem; margin: 0.8rem 0; }
+.trap-score-row {
+  display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+  background: var(--inset); border: 1px solid var(--panel-edge);
+  border-radius: 8px; padding: 0.55rem 0.8rem;
+}
+.trap-name { font-weight: 700; min-width: 8.5rem; }
+.trap-preds { display: inline-flex; gap: 0.35rem; }
+.trap-pred { background: var(--control); color: var(--text); font-weight: 500; padding: 0.3rem 0.7rem; font-size: 0.88rem; }
+.trap-pred.active { background: var(--accent); color: #1a1408; font-weight: 700; }
+.trap-status { color: var(--muted); font-size: 0.9rem; }
+.trap-status.fell { color: var(--bad); font-weight: 700; }
+.trap-status.survived { color: var(--good); font-weight: 700; }
+#trapResetBtn { background: var(--control); color: var(--text); font-weight: 500; padding: 0.35rem 0.8rem; }
 @media (max-width: 640px) {
   .topbar, main, footer { padding-left: 1rem; padding-right: 1rem; }
   .canvas-box { height: 300px; }

@@ -36,6 +36,20 @@ document.getElementById("f").addEventListener("load", async () => {
     "assistant", "rag", "capstone"];
   const expectedAdds = { beginner: [], medium: ["m"], expert: ["m", "e"] };
 
+  // The Introduction is a view, but not a counted lesson.
+  doc.querySelector('.lesson-nav a[href="#intro"]').click();
+  check("intro: shown on its sidebar link",
+    [...doc.querySelectorAll("main > section.panel")]
+      .filter((s) => getComputedStyle(s).display !== "none").map((s) => s.id).join(",") === "intro");
+  check("intro: four chapter cards and four sidebar groups",
+    doc.querySelectorAll("#intro .chapter-card").length === 4 &&
+    doc.querySelectorAll(".sidebar-group").length === 4);
+  doc.querySelector("#intro .begin-btn").click();
+  await sleep(300); // the Begin link works via hashchange, which is async
+  check("intro: Begin button opens Lesson 1",
+    [...doc.querySelectorAll("main > section.panel")]
+      .filter((s) => getComputedStyle(s).display !== "none").map((s) => s.id).join(",") === "tokens");
+
   for (const id of VIEWS) {
     doc.querySelector('.lesson-nav a[href="#' + id + '"]').click();
     const active = [...doc.querySelectorAll("main > section.panel")]

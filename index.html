@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -36,18 +36,23 @@
 <aside class="sidebar" id="sidebar">
   <p class="sidebar-title">Lessons</p>
   <nav class="lesson-nav" aria-label="Lessons">
+    <a href="#intro">✦ Introduction</a>
+    <p class="sidebar-group">Foundations</p>
     <a href="#tokens">1 · Tokens</a>
     <a href="#embeddings">2 · Embeddings</a>
     <a href="#training">3 · Training</a>
     <a href="#attention">4 · Attention</a>
     <a href="#probabilities">5 · Next token</a>
+    <p class="sidebar-group">Inside the machine</p>
     <a href="#journey">6 · Inside the model</a>
     <a href="#parsing">7 · Parsing a question</a>
     <a href="#toymodel">8 · Toy model 3D</a>
+    <p class="sidebar-group">Reality check</p>
     <a href="#context">9 · Context</a>
     <a href="#limits">10 · Limits</a>
     <a href="#playground">11 · Live model</a>
     <a href="#scaling">12 · Small vs premium</a>
+    <p class="sidebar-group">Beyond the basics</p>
     <a href="#assistant">13 · Predictor to assistant</a>
     <a href="#rag">14 · Finding answers (RAG)</a>
     <a href="#capstone">15 · Capstone</a>
@@ -77,12 +82,38 @@
 </aside>
 
 <main>
-  <section id="tokens" class="panel">
-    <h2>1 · Tokens — how the model reads</h2>
+  <section id="intro" class="panel">
+    <h2>✦ Introduction — start here</h2>
     <p>Welcome to the workshop. This course takes one small language model — a real one,
     running on this computer — and takes it apart piece by piece, so that when a big model
     does something that looks like magic, you'll know which piece did it. No maths degree
-    needed: every idea comes with something you can press, drag, or break.</p>
+    needed: every idea comes with something you can press, drag, type into, or break.</p>
+    <h3>How to use this guide</h3>
+    <ul class="intro-list">
+      <li><strong>One lesson at a time.</strong> Pick from the menu on the left; the “Next lesson” button at the bottom of each lesson is the main path.</li>
+      <li><strong>Levels add, never replace.</strong> Beginner text never changes. Medium and Expert reveal extra “goes deeper” blocks at the end of a lesson — switch up in the sidebar Settings and read only what's new.</li>
+      <li><strong>Predict before you run.</strong> Guessing what will happen, then watching, is the fastest way to build intuition. Several lessons (and the capstone) are built around it.</li>
+      <li><strong>Quizzes and progress</strong> live in the sidebar: two questions per lesson in the Quiz drawer, and “Mark complete” at each lesson's end tracks where you are.</li>
+    </ul>
+    <h3>What you need</h3>
+    <p>Most of the course works with no model at all — the teaching demos run entirely in
+    this page. Lessons 11 and 15 talk to a real model served by
+    <a href="https://ollama.com/download" target="_blank" rel="noopener">Ollama</a> on your
+    own machine, so nothing you type leaves this computer. Your current status:
+    <strong id="introModelStatus">checking…</strong> If it's offline, the setup steps in
+    Lesson 11 will walk you through it — everything else works right now.</p>
+    <h3>The course map</h3>
+    <div class="chapter-map">
+      <a href="#tokens" class="chapter-card"><strong>Foundations</strong> · Lessons 1–5<br>How the model reads, what words become, how it learned, what it pays attention to, and how it chooses what to say next.</a>
+      <a href="#journey" class="chapter-card"><strong>Inside the machine</strong> · Lessons 6–8<br>A token's journey through the layers, how your question gets parsed without a parser, and a real tiny model training in front of you.</a>
+      <a href="#context" class="chapter-card"><strong>Reality check</strong> · Lessons 9–12<br>Why it forgets, how it goes confidently wrong, the real live model with its debug data, and what separates it from premium models.</a>
+      <a href="#assistant" class="chapter-card"><strong>Beyond the basics</strong> · Lessons 13–15<br>How a predictor becomes an assistant, how real systems look answers up, and a capstone that takes one live answer completely apart.</a>
+    </div>
+    <p class="intro-begin"><a href="#tokens" class="begin-btn">Begin Lesson 1 — Tokens →</a></p>
+  </section>
+
+  <section id="tokens" class="panel">
+    <h2>1 · Tokens — how the model reads</h2>
     <p>One idea carries the whole course: <strong>a language model is a prediction machine,
     not a database.</strong> It doesn't look answers up; it guesses what comes next, one
     small piece at a time, astonishingly well. Everything else — the cleverness, the
@@ -669,6 +700,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=16"></script>
+<script type="module" src="app.js?v=17"></script>
 </body>
 </html>

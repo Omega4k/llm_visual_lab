@@ -52,7 +52,7 @@ try {
 } catch (e) { /* keep default */ }
 
 /* ---------- One lesson at a time, picked from the left sidebar ---------- */
-const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
+const VIEW_IDS = ["intro", "tokens", "embeddings", "training", "attention", "probabilities",
   "journey", "parsing", "toymodel", "context", "limits", "playground", "scaling",
   "assistant", "rag", "capstone"];
 const sidebar = document.getElementById("sidebar");
@@ -67,8 +67,8 @@ menuBtn.addEventListener("click", () =>
   setSidebar(!sidebar.classList.contains("open")));
 sidebarScrim.addEventListener("click", () => setSidebar(false));
 function showLesson(id) {
-  if (id === "showcase") id = "playground"; // merged into lesson 10
-  if (!VIEW_IDS.includes(id)) id = "tokens";
+  if (id === "showcase") id = "playground"; // merged into lesson 11
+  if (!VIEW_IDS.includes(id)) id = "intro";
   document.querySelectorAll("main > section.panel").forEach((sec) =>
     sec.classList.toggle("active-view", sec.id === id));
   document.querySelectorAll(".lesson-nav a").forEach((a) => {
@@ -89,7 +89,7 @@ function showLesson(id) {
 document.querySelectorAll(".lesson-nav a").forEach((a) =>
   a.addEventListener("click", () => showLesson(a.getAttribute("href").slice(1))));
 window.addEventListener("hashchange", () => showLesson(location.hash.slice(1)));
-showLesson(location.hash.slice(1) || "tokens");
+showLesson(location.hash.slice(1) || "intro");
 
 /* ---------- Colour theme ---------- */
 const THEME_3D = {
@@ -347,12 +347,19 @@ async function checkModel() {
     statusText.textContent = names.length
       ? "Local model online — using " + MODEL + (names.length > 1 ? " (" + names.length + " available)" : "")
       : "Ollama online — no models pulled yet";
+    const introStatus = document.getElementById("introModelStatus");
+    if (introStatus) introStatus.textContent = names.length
+      ? "online — " + MODEL + " is ready for Lessons 11 and 15."
+      : "Ollama is running but no model is pulled yet (Lesson 11 explains how).";
     offlineHelp.hidden = names.length > 0;
     if (!names.length) statusText.textContent += " (run: ollama pull " + DEFAULT_MODEL + ")";
   } catch (err) {
     modelOnline = false;
     statusDot.className = "dot dot-off";
     statusText.textContent = "Local model offline";
+    const introStatus2 = document.getElementById("introModelStatus");
+    if (introStatus2) introStatus2.textContent =
+      "offline — fine for now; only Lessons 11 and 15 need it.";
     offlineHelp.hidden = false;
   }
 }
@@ -2601,6 +2608,13 @@ LESSON_ORDER.forEach((id, idx) => {
   section.appendChild(footer);
 });
 renderProgress();
+
+/* Returning visitors (any completed lesson) resume at their first unfinished
+   lesson instead of the Introduction — unless they arrived via a link. */
+if (!location.hash && completedLessons.size) {
+  const next = LESSON_ORDER.find((id) => !completedLessons.has(id));
+  if (next) showLesson(next);
+}
 
 /* ---------- Lesson 1: real BPE tokenizer comparison (loaded on demand) ---------- */
 let realTokenizer = null;

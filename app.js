@@ -48,7 +48,7 @@ try {
 
 /* ---------- One lesson at a time, picked from the left sidebar ---------- */
 const VIEW_IDS = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "toymodel", "context", "limits", "playground"];
+  "journey", "toymodel", "context", "limits", "playground", "scaling"];
 const sidebar = document.getElementById("sidebar");
 const sidebarScrim = document.getElementById("sidebarScrim");
 const menuBtn = document.getElementById("menuBtn");
@@ -149,6 +149,7 @@ const TELEMETRY = {
   probabilities: "PRB · SAMP-05 · OK", journey: "TRF · LYR-06 · OK",
   toymodel: "TOY · REAL-07 · OK", context: "CTX · MEM-08 · OK",
   limits: "LIM · HALL-09 · WARN", playground: "LIVE · LLM-10 · OK",
+  scaling: "SCL · SCALE-11 · OK",
 };
 for (const [id, text] of Object.entries(TELEMETRY)) {
   const section = document.getElementById(id);
@@ -1076,6 +1077,165 @@ async function initJourneyLive3D() {
   });
 }
 initJourneyLive3D();
+
+/* ---------- Lesson 11: small vs premium — log-scale towers in 3D ---------- */
+const SCALE_METRICS = {
+  params: {
+    small: 1.23e9, big: 2.5e11,
+    smallLabel: "1.23B", bigLabel: "~250B class",
+    note: "Parameters (the model's adjustable knobs): your Llama has 1.23 billion — a real, published figure. Premium models don't publish theirs; the tall tower is illustrated at 250 billion, the commonly estimated class. The honest statement is the ratio: roughly 200× more knobs to store patterns and facts in.",
+  },
+  training: {
+    small: 9e12, big: 3e13,
+    smallLabel: "9 trillion", bigLabel: "~30 trillion class",
+    note: "Training tokens (how much text the model practised on, lessons 1–3): Meta's model card says up to 9 trillion for yours. Premium training sets are not published; illustrated at ~30 trillion. More practice text = more of the world's patterns were seen at least once.",
+  },
+  context: {
+    small: 131072, big: 1000000,
+    smallLabel: "131,072", bigLabel: "up to ~1M class",
+    note: "Context window (lesson 8's window size): yours holds 131,072 tokens — roughly a 300-page book. Premium products offer roughly 200k–1M tokens. Impressive, but notice this is the smallest gap on the chart: about 8×, not hundreds.",
+  },
+  compute: {
+    small: 1, big: 200,
+    smallLabel: "×1", bigLabel: "×~200 class",
+    note: "Rough compute burned per generated token. Inference cost scales with active parameters (~2 FLOPs per parameter per token), so the premium answer costs on the order of 200× more arithmetic than yours — before premium extras like longer deliberate reasoning. That gap is why one is free on your desk and the other is metered in a data centre.",
+  },
+};
+let scaleTargets = { small: 1, big: 3.65 };
+let scaleSet3D = null;
+function setScaleMetric(key) {
+  const m = SCALE_METRICS[key];
+  if (!m) return;
+  document.querySelectorAll(".scale-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.metric === key));
+  const ratio = m.big / m.small;
+  scaleTargets = { small: 1, big: 1 + Math.log10(ratio) * 1.15 };
+  document.getElementById("scaleNote").textContent = m.note;
+  if (scaleSet3D) scaleSet3D(m.smallLabel, m.bigLabel);
+}
+document.querySelectorAll(".scale-btn").forEach((b) =>
+  b.addEventListener("click", () => setScaleMetric(b.dataset.metric)));
+
+async function initScale3D() {
+  const box = document.getElementById("scaleCanvas");
+  let THREE;
+  try { THREE = await import("three"); } catch (err) {
+    document.getElementById("scaleFallback").hidden = false;
+    return;
+  }
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(theme3D.bg);
+  const camera = new THREE.PerspectiveCamera(50, box.clientWidth / box.clientHeight, 0.1, 100);
+  camera.position.set(0, 2.2, 8.6);
+  camera.lookAt(0, 1.4, 0);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(box.clientWidth, box.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  box.appendChild(renderer.domElement);
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const grid = new THREE.GridHelper(9, 9, 0x3a4656, 0x232c38);
+  grid.position.y = 0;
+  group.add(grid);
+
+  function makeLabel(scaleX, scaleY) {
+    const c = document.createElement("canvas");
+    c.width = 384; c.height = 168;
+    const tex = new THREE.CanvasTexture(c);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthTest: false }));
+    sprite.scale.set(scaleX, scaleY, 1);
+    sprite.renderOrder = 20;
+    sprite.userData = { canvas: c, tex };
+    return sprite;
+  }
+  function drawLabel(sprite, line1, line2, hot) {
+    const { canvas, tex } = sprite.userData;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 384, 168);
+    ctx.fillStyle = "rgba(10, 14, 19, 0.88)";
+    ctx.strokeStyle = hot ? "rgba(255, 210, 140, 0.95)" : "rgba(140, 165, 190, 0.55)";
+    ctx.lineWidth = hot ? 5 : 3;
+    ctx.beginPath();
+    ctx.roundRect(14, 8, 356, 152, 18);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2ede4";
+    ctx.font = "700 46px Segoe UI, sans-serif";
+    ctx.fillText(String(line1).slice(0, 18), 192, 72);
+    ctx.fillStyle = hot ? "#ffd28c" : "#a9c6de";
+    ctx.font = "700 36px Consolas, monospace";
+    ctx.fillText(String(line2).slice(0, 20), 192, 124);
+    tex.needsUpdate = true;
+  }
+
+  const towers = [];
+  [["Llama 3.2 1B", "on your computer", -1.9, 0xe0a458, true],
+   ["Premium class", "data centre", 1.9, 0x5da9c4, false]].forEach(([name, sub, x, color, hot]) => {
+    const geo = new THREE.BoxGeometry(1.5, 1, 1.5);
+    geo.translate(0, 0.5, 0);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.92 }));
+    mesh.position.set(x, 0, 0);
+    mesh.scale.y = 0.2;
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(1.54, 1.02, 1.54)),
+      new THREE.LineBasicMaterial({ color: 0xdfe9f2, transparent: true, opacity: 0.35 }));
+    edges.position.y = 0.5;
+    mesh.add(edges);
+    const value = makeLabel(2.0, 0.88);
+    const title = makeLabel(2.3, 1.0);
+    drawLabel(title, name, sub, hot);
+    title.position.set(x, -0.75, 0);
+    group.add(mesh); group.add(value); group.add(title);
+    towers.push({ mesh, value, cur: 0.2 });
+  });
+  scaleSet3D = (smallLabel, bigLabel) => {
+    drawLabel(towers[0].value, smallLabel, "real figure", true);
+    drawLabel(towers[1].value, bigLabel, "estimate", false);
+  };
+  scaleSet3D(SCALE_METRICS.params.smallLabel, SCALE_METRICS.params.bigLabel);
+  themeRecolorers.push((p) => { scene.background = new THREE.Color(p.bg); });
+
+  let dragging = false, px = 0, py = 0, ry = 0.35;
+  const el = renderer.domElement;
+  el.style.touchAction = "none";
+  el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    ry += (e.clientX - px) * 0.008;
+    px = e.clientX; py = e.clientY;
+  });
+  el.addEventListener("pointerup", () => { dragging = false; });
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    camera.position.z = Math.max(5, Math.min(14, camera.position.z + e.deltaY * 0.01));
+  }, { passive: false });
+
+  const reduceM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function tick() {
+    requestAnimationFrame(tick);
+    if (!dragging && !reduceM) ry += 0.0012;
+    group.rotation.y = Math.sin(ry) * 0.4;
+    towers[0].cur += (scaleTargets.small - towers[0].cur) * 0.07;
+    towers[1].cur += (scaleTargets.big - towers[1].cur) * 0.07;
+    towers.forEach((t) => {
+      t.mesh.scale.y = Math.max(0.05, t.cur);
+      t.value.position.set(t.mesh.position.x, t.cur + 0.65, 0);
+    });
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(tick);
+  window.addEventListener("resize", () => {
+    const w = box.clientWidth, h = box.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
+initScale3D();
+setScaleMetric("params");
 
 
 /* ---------- Lesson 3: attention (schematic teaching data) ---------- */
@@ -2054,11 +2214,11 @@ initToy3D();
 
 /* ---------- Course progress, next-lesson flow, checkpoint quizzes ---------- */
 const LESSON_ORDER = ["tokens", "embeddings", "training", "attention", "probabilities",
-  "journey", "toymodel", "context", "limits", "playground"];
+  "journey", "toymodel", "context", "limits", "playground", "scaling"];
 const LESSON_TITLES = {
   tokens: "Tokens", embeddings: "Embeddings", training: "Training", attention: "Attention",
   probabilities: "Next token", journey: "Inside the model", toymodel: "Toy model 3D",
-  context: "Context", limits: "Limits", playground: "Live model",
+  context: "Context", limits: "Limits", playground: "Live model", scaling: "Small vs premium",
 };
 let completedLessons = new Set();
 try {
@@ -2137,6 +2297,10 @@ const QUIZZES = {
   playground: [
     { q: "Where does the live model run?", opts: ["In the cloud", "On your own computer", "Inside the browser tab only"], a: 1, why: "Ollama serves llama3.2:1b locally — nothing leaves this machine." },
     { q: "Low temperature (near 0) makes output…", opts: ["More random", "Safer and more repetitive", "Longer"], a: 1, why: "Low T sharpens the distribution toward the favourite." },
+  ],
+  scaling: [
+    { q: "A premium model is smarter mainly because…", opts: ["It uses a different, secret kind of maths", "Same recipe at far greater scale, plus extra polish training", "It looks answers up in a database"], a: 1, why: "Tokens, attention and next-token prediction are the same; parameters, data and post-training are not." },
+    { q: "Someone quotes an exact parameter count for a premium model. You should…", opts: ["Believe it — all specs are public", "Ask for the official source — makers don't publish it, so it's an estimate", "Multiply your local model's count by ten"], a: 1, why: "Premium makers don't disclose parameter counts; honest comparisons label them estimates." },
   ],
 };
 

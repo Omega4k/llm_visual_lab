@@ -32,7 +32,7 @@ document.getElementById("f").addEventListener("load", async () => {
   }
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
   const VIEWS = ["tokens", "embeddings", "training", "attention", "probabilities",
-    "journey", "toymodel", "context", "limits", "playground"];
+    "journey", "toymodel", "context", "limits", "playground", "scaling"];
   const expectedAdds = { beginner: [], medium: ["m"], expert: ["m", "e"] };
 
   for (const id of VIEWS) {
@@ -125,6 +125,14 @@ document.getElementById("f").addEventListener("load", async () => {
   check("limits: scoreboard resets",
     !predBtn.classList.contains("active") &&
     doc.getElementById("trapTally").textContent.includes("0 of 0"));
+  doc.querySelector('.lesson-nav a[href="#scaling"]').click();
+  check("scaling: comparison table present",
+    doc.querySelectorAll("#scaling .compare-table tbody tr").length >= 6);
+  const noteBefore = doc.getElementById("scaleNote").textContent;
+  doc.querySelector('[data-metric="context"]').click();
+  check("scaling: metric switch updates the explanation",
+    doc.getElementById("scaleNote").textContent.includes("Context window") &&
+    doc.getElementById("scaleNote").textContent !== noteBefore);
 
   // A 3D canvas created while its lesson was hidden must get a real size
   // when the lesson is shown (view switching re-fires window resize).
@@ -138,6 +146,11 @@ document.getElementById("f").addEventListener("load", async () => {
   const toy = doc.querySelector("#toyCanvas canvas");
   check("toymodel: 3D canvas has non-zero size after showing lesson",
     !!toy && toy.width > 0 && toy.height > 0);
+  doc.querySelector('.lesson-nav a[href="#scaling"]').click();
+  await sleep(1500);
+  const scaleCv = doc.querySelector("#scaleCanvas canvas");
+  check("scaling: 3D canvas has non-zero size after showing lesson",
+    !!scaleCv && scaleCv.width > 0 && scaleCv.height > 0);
 
   document.getElementById("out").textContent =
     (failures ? "FAIL (" + failures + ")\n" : "PASS\n") + lines.join("\n");

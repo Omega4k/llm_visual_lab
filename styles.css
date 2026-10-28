@@ -118,6 +118,16 @@ textarea:focus { outline: 2px solid var(--accent-dark); }
 .echo-tok { border-radius: 3px; padding: 0.08rem 0.05rem; color: #14181d; }
 .echo-tok.linked, .token.linked { outline: 2px solid var(--text); outline-offset: 1px; }
 .sharp-canvas { width: 100%; height: auto; background: var(--inset); border: 1px solid var(--panel-edge); border-radius: 8px; }
+.scale-btn { background: var(--control); color: var(--text); font-weight: 500; }
+.scale-btn:hover { background: var(--control-hover); }
+.scale-btn.active { background: var(--accent); color: #1a1408; font-weight: 700; }
+.compare-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
+.compare-table th, .compare-table td {
+  border: 1px solid var(--panel-edge); padding: 0.5rem 0.7rem;
+  text-align: left; vertical-align: top;
+}
+.compare-table th { background: var(--inset); color: var(--accent); }
+.compare-table td:first-child { font-weight: 700; white-space: nowrap; }
 .token-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 1rem 0 0.6rem; min-height: 2rem; }
 .token {
   font-family: var(--mono); font-size: 0.88rem; padding: 0.2rem 0.5rem;

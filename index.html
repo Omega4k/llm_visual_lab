@@ -41,6 +41,7 @@
     <a href="#context">8 · Context</a>
     <a href="#limits">9 · Limits</a>
     <a href="#playground">10 · Live model</a>
+    <a href="#scaling">11 · Small vs premium</a>
   </nav>
   <div class="sidebar-progress"><span id="progressLabel">Progress 0/10</span><span class="progress-track"><span class="progress-fill" id="progressFill"></span></span></div>
   <div class="sidebar-settings">
@@ -69,6 +70,15 @@
 <main>
   <section id="tokens" class="panel">
     <h2>1 · Tokens — how the model reads</h2>
+    <p>Welcome to the workshop. This course takes one small language model — a real one,
+    running on this computer — and takes it apart piece by piece, so that when a big model
+    does something that looks like magic, you'll know which piece did it. No maths degree
+    needed: every idea comes with something you can press, drag, or break.</p>
+    <p>One idea carries the whole course: <strong>a language model is a prediction machine,
+    not a database.</strong> It doesn't look answers up; it guesses what comes next, one
+    small piece at a time, astonishingly well. Everything else — the cleverness, the
+    mistakes, the confident made-up facts in lesson 9 — follows from that. And it all
+    starts with how the model reads, because it doesn't read the way you do.</p>
     <p>A model never sees words. It sees <strong>tokens</strong>: small chunks of text. Type below and watch your sentence break into chunks. Common words stay whole; long or rare words split into pieces.</p>
     <label for="tokenInput">Your text</label>
     <textarea id="tokenInput" rows="3">The quick brown fox jumps over the lazy dog.</textarea>
@@ -413,12 +423,56 @@
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>Live inference against llama3.2:1b on localhost:11434, streamed token-by-token from <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>. Each chunk is one token sampled from softmax(z/T) at your T; the full context is reprocessed per token (KV-cached server-side). Probabilities are <span class="mono">exp(logprob)</span>, “all others” is the remaining mass over the ~128k vocabulary, and tower height ∝ √p (noted, not hidden). One honesty note on the journey view: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation, the 16-layer count (real, via <span class="mono">/api/show</span>), the streamed output and the candidate probabilities are real. The full debug breakdown is in the Expert debug panel above.</p>
   </section>
 
+  <section id="scaling" class="panel">
+    <h2>11 · Small vs premium — why scale makes it smarter</h2>
+    <p>Everything you have done so far used a model with about a billion knobs, running on
+    your own computer. Premium models — the big hosted ones, like muse-wonder — work exactly
+    the same way: tokens in, embeddings, attention, next-token probabilities out. There is
+    no secret extra ingredient in the recipe. The difference is <strong>scale, polish, and
+    where it runs</strong>: vastly more knobs, trained on vastly more text, finished with
+    extra training that teaches it to follow instructions and show its working.</p>
+    <p>Why would “more of the same” make something smarter? A bigger model has room to store
+    more patterns, more facts, and more subtle relationships between them — and it has seen
+    more examples of every kind of problem during training. Its next-token guesses (lesson 5)
+    are simply right more often, especially on rare and complicated things. Switch the measure
+    below and compare — the towers are drawn on a <strong>log scale</strong>, because on an
+    honest linear scale the little model would be a flat line you couldn't see.</p>
+    <div class="controls scale-controls">
+      <button type="button" class="scale-btn active" data-metric="params">Parameters</button>
+      <button type="button" class="scale-btn" data-metric="training">Training tokens</button>
+      <button type="button" class="scale-btn" data-metric="context">Context window</button>
+      <button type="button" class="scale-btn" data-metric="compute">Compute per token</button>
+    </div>
+    <div id="scaleCanvas" class="canvas-box"></div>
+    <p class="gauge-label">Small vs premium — drag to orbit · scroll to zoom · heights are log-scaled (each grid step up is roughly ×10)</p>
+    <p class="hint" id="scaleFallback" hidden>The 3D view needs an internet connection for its library on first load. The table below carries the same comparison.</p>
+    <p class="stats" id="scaleNote"></p>
+    <table class="compare-table">
+      <thead><tr><th>Measure</th><th>Llama 3.2 1B (yours, real figures)</th><th>Premium class (e.g. muse-wonder)</th></tr></thead>
+      <tbody>
+        <tr><td>Parameters</td><td>1.23 billion</td><td>Not published — estimated in the hundreds of billions class</td></tr>
+        <tr><td>Layers / embedding size</td><td>16 layers · 2,048 numbers per token</td><td>Not published — far deeper and wider</td></tr>
+        <tr><td>Vocabulary</td><td>128,256 tokens</td><td>Not published — same order of magnitude</td></tr>
+        <tr><td>Context window</td><td>131,072 tokens (~100k words)</td><td>Roughly 200k–1M tokens depending on the product</td></tr>
+        <tr><td>Training text</td><td>Up to 9 trillion tokens (Meta's model card)</td><td>Not published — tens of trillions class, plus heavy filtering and curation</td></tr>
+        <tr><td>After training</td><td>Instruction versions exist; yours is lightly polished</td><td>Extensive instruction tuning, human-feedback training, safety and reasoning tuning</td></tr>
+        <tr><td>Runs on</td><td>Your computer, one chip, numbers rounded to 8-bit</td><td>Data centres, many accelerators, higher-precision numbers</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Read the premium column honestly: those companies don't publish their
+    recipes, so anything not announced is marked as an estimate of the class, not a spec.
+    Anyone quoting you an exact parameter count for a premium model is guessing.</p>
+    <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium · goes deeper</span>The pattern behind the towers is a <strong>scaling law</strong>: prediction loss falls smoothly and predictably as you increase parameters, data, and compute together — a straight line on a log-log plot, found empirically across many model families. Double all three and the model gets measurably better at next-token prediction, and downstream abilities (arithmetic, code, translation) ride along. There is also a right ratio: research (the “Chinchilla” result) found many models were under-trained for their size — roughly 20 training tokens per parameter is a better balance than a huge model fed little text.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert · goes deeper</span>The arithmetic of scale: training compute ≈ 6 · parameters · training-tokens FLOPs, so the premium column multiplies two big numbers together — that is why frontier training runs are measured in megawatt-months. Inference costs roughly 2 · parameters FLOPs per generated token (before attention and memory traffic), which is why premium answers are metered and your 1B feels instant. Three caveats keep scale honest: (1) many premium systems are mixtures-of-experts — total parameters overstate the active ones used per token; (2) returns diminish — each halving of loss costs exponentially more compute, and high-quality text is finite (the “data wall”); (3) scale is not the whole gap — data curation, post-training (instruction tuning, RLHF/preference optimisation), longer deliberate generation, and tool use are engineered on top. Your local model is the same kind of machine with every dial turned down — and its weights rounded to 8-bit integers (Q8_0) to fit, which costs a little accuracy by itself.</p>
+  </section>
+
 </main>
 </div><!-- /.layout -->
 
 <footer>
   <p>LLM Visual Lab — a local learning tool. Lessons 1–6 are schematic teaching models,
-  lesson 7 is a real (tiny) trained model, and lesson 10 uses the real local Llama.</p>
+  lesson 7 is a real (tiny) trained model, lesson 10 uses the real local Llama,
+  and lesson 11 compares it with premium models (premium figures are labelled estimates).</p>
 </footer>
 
 <div class="quiz-scrim" id="quizScrim" hidden></div>

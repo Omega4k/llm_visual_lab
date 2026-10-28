@@ -14,7 +14,7 @@ the transformer stack, a staged question-parsing annotator (word roles,
 links, interpreted request, ambiguity pair), a real trainable toy model
 in 3D, context-window forgetting demo, hallucination traps, a streaming
 playground that talks to a local model server, and a small-vs-premium
-scaling comparison with a log-scale 3D tower chart (premium makers don't
+scaling comparison with a true-volume-scale 3D block chart (premium makers don't
 publish their specs, so that column is labelled as class estimates
 throughout), a predictor-to-assistant post-training lesson (clickable
 pipeline, base-vs-assistant comparisons), a toy RAG lesson (real cosine

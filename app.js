@@ -1119,30 +1119,30 @@ async function initJourneyLive3D() {
 }
 initJourneyLive3D();
 
-/* ---------- Lesson 12: small vs premium — log-scale towers in 3D ---------- */
+/* ---------- Lesson 12: small vs premium — true-scale volumes in 3D ---------- */
 const SCALE_METRICS = {
   params: {
     small: 1.23e9, big: 2.5e11,
     smallLabel: "1.23B", bigLabel: "~250B class",
-    note: "Parameters (the model's adjustable knobs): your Llama has 1.23 billion — a real, published figure. Premium models don't publish theirs; the tall tower is illustrated at 250 billion, the commonly estimated class. The honest statement is the ratio: roughly 200× more knobs to store patterns and facts in.",
+    note: "Parameters (the model's adjustable knobs): your Llama has 1.23 billion — a real, published figure. Premium models don't publish theirs; the big block is illustrated at 250 billion, the commonly estimated class. The blocks are drawn at TRUE volume scale: if the small cube is the whole 1B model, the premium block holds about 200 of them — roughly 5.9× wider, taller and deeper (200 = 5.9³). No log tricks: what you see is the ratio.",
   },
   training: {
     small: 9e12, big: 3e13,
     smallLabel: "9 trillion", bigLabel: "~30 trillion class",
-    note: "Training tokens (how much text the model practised on, lessons 1–3): Meta's model card says up to 9 trillion for yours. Premium training sets are not published; illustrated at ~30 trillion. More practice text = more of the world's patterns were seen at least once.",
+    note: "Training tokens (how much text the model practised on, lessons 1–3): Meta's model card says up to 9 trillion for yours. Premium training sets are not published; illustrated at ~30 trillion. At true volume scale that's a block about 3.3× the small one's volume — a real gap, but notice how much smaller it looks than the parameter gap.",
   },
   context: {
     small: 131072, big: 1000000,
     smallLabel: "131,072", bigLabel: "up to ~1M class",
-    note: "Context window (lesson 9's window size): yours holds 131,072 tokens — roughly a 300-page book. Premium products offer roughly 200k–1M tokens. Impressive, but notice this is the smallest gap on the chart: about 8×, not hundreds.",
+    note: "Context window (lesson 9's window size): yours holds 131,072 tokens — roughly a 300-page book. Premium products offer roughly 200k–1M tokens. Represented as volume that's about 7.6× — the smallest gap of the four, which the true-scale blocks make obvious at a glance.",
   },
   compute: {
     small: 1, big: 200,
     smallLabel: "×1", bigLabel: "×~200 class",
-    note: "Rough compute burned per generated token. Inference cost scales with active parameters (~2 FLOPs per parameter per token), so the premium answer costs on the order of 200× more arithmetic than yours — before premium extras like longer deliberate reasoning. That gap is why one is free on your desk and the other is metered in a data centre.",
+    note: "Rough compute burned per generated token, again at true volume scale (~200×). Inference cost scales with active parameters (~2 FLOPs per parameter per token), so each premium token costs on the order of 200× more arithmetic than yours — before premium extras like longer deliberate reasoning. That gap is why one is free on your desk and the other is metered in a data centre.",
   },
 };
-let scaleTargets = { small: 1, big: 3.65 };
+let scaleTargetSide = 0.55 * Math.cbrt(250 / 1.23);
 let scaleSet3D = null;
 function setScaleMetric(key) {
   const m = SCALE_METRICS[key];
@@ -1150,9 +1150,13 @@ function setScaleMetric(key) {
   document.querySelectorAll(".scale-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.metric === key));
   const ratio = m.big / m.small;
-  scaleTargets = { small: 1, big: 1 + Math.log10(ratio) * 1.15 };
+  scaleTargetSide = 0.55 * Math.cbrt(ratio);
   document.getElementById("scaleNote").textContent = m.note;
-  if (scaleSet3D) scaleSet3D(m.smallLabel, m.bigLabel);
+  if (scaleSet3D) {
+    scaleSet3D(m.smallLabel, m.bigLabel,
+      Math.max(1, Math.round(Math.cbrt(ratio))),
+      "×" + Math.round(ratio) + " volume · est");
+  }
 }
 document.querySelectorAll(".scale-btn").forEach((b) =>
   b.addEventListener("click", () => setScaleMetric(b.dataset.metric)));
@@ -1167,8 +1171,8 @@ async function initScale3D() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(theme3D.bg);
   const camera = new THREE.PerspectiveCamera(50, box.clientWidth / box.clientHeight, 0.1, 100);
-  camera.position.set(0, 2.2, 8.6);
-  camera.lookAt(0, 1.4, 0);
+  camera.position.set(0, 2.6, 9.8);
+  camera.lookAt(0, 1.2, 0);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(box.clientWidth, box.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1176,7 +1180,7 @@ async function initScale3D() {
   const group = new THREE.Group();
   scene.add(group);
 
-  const grid = new THREE.GridHelper(9, 9, 0x3a4656, 0x232c38);
+  const grid = new THREE.GridHelper(11, 11, 0x3a4656, 0x232c38);
   grid.position.y = 0;
   group.add(grid);
 
@@ -1211,32 +1215,64 @@ async function initScale3D() {
     tex.needsUpdate = true;
   }
 
-  const towers = [];
-  [["Llama 3.2 1B", "on your computer", -1.9, 0xe0a458, true],
-   ["Premium class", "data centre", 1.9, 0x5da9c4, false]].forEach(([name, sub, x, color, hot]) => {
-    const geo = new THREE.BoxGeometry(1.5, 1, 1.5);
+  // True-scale volumes: the small cube IS the 1B model; the big block's
+  // volume is ratio x larger (side = cube root of the ratio). A subdivided
+  // grid on the big block shows roughly how many small cubes fit inside.
+  const SMALL = 0.55;
+  function blockEdges(size, color) {
+    return new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 1.02, size * 1.02, size * 1.02)),
+      new THREE.LineBasicMaterial({ color: 0xdfe9f2, transparent: true, opacity: 0.4 }));
+  }
+  function makeUnitGrid(n) {
+    const pos = [];
+    const seg = (a, b) => pos.push(...a, ...b);
+    for (let i = 1; i < n; i++) {
+      const f = -0.5 + i / n;
+      seg([f, 0, -0.5], [f, 1, -0.5]); seg([f, 0, 0.5], [f, 1, 0.5]);
+      seg([-0.5, 0, f], [-0.5, 1, f]); seg([0.5, 0, f], [0.5, 1, f]);
+      const y = i / n;
+      seg([-0.5, y, -0.5], [0.5, y, -0.5]); seg([-0.5, y, 0.5], [0.5, y, 0.5]);
+      seg([-0.5, y, -0.5], [-0.5, y, 0.5]); seg([0.5, y, -0.5], [0.5, y, 0.5]);
+      seg([f, 1, -0.5], [f, 1, 0.5]); seg([-0.5, 1, f], [0.5, 1, f]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    return new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+      color: 0xdfe9f2, transparent: true, opacity: 0.28 }));
+  }
+  const blocks = [];
+  [["Llama 3.2 1B", "on your computer", -2.35, 0xe0a458, true],
+   ["Premium class", "data centre", 1.55, 0x5da9c4, false]].forEach(([name, sub, x, color, hot], idx) => {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
     geo.translate(0, 0.5, 0);
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.92 }));
+      color, transparent: true, opacity: idx === 0 ? 0.95 : 0.55 }));
     mesh.position.set(x, 0, 0);
-    mesh.scale.y = 0.2;
-    const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(1.54, 1.02, 1.54)),
-      new THREE.LineBasicMaterial({ color: 0xdfe9f2, transparent: true, opacity: 0.35 }));
-    edges.position.y = 0.5;
-    mesh.add(edges);
-    const value = makeLabel(2.0, 0.88);
+    mesh.scale.setScalar(idx === 0 ? SMALL : 0.2);
+    if (idx === 0) {
+      const e = blockEdges(1.02, color);
+      e.position.y = 0.5;
+      mesh.add(e);
+    }
+    const value = makeLabel(2.1, 0.92);
     const title = makeLabel(2.3, 1.0);
     drawLabel(title, name, sub, hot);
     title.position.set(x, -0.75, 0);
     group.add(mesh); group.add(value); group.add(title);
-    towers.push({ mesh, value, cur: 0.2 });
+    blocks.push({ mesh, value, cur: idx === 0 ? SMALL : 0.2, grid: null });
   });
-  scaleSet3D = (smallLabel, bigLabel) => {
-    drawLabel(towers[0].value, smallLabel, "real figure", true);
-    drawLabel(towers[1].value, bigLabel, "estimate", false);
+  scaleSet3D = (smallLabel, bigLabel, divisions, ratioLabel) => {
+    drawLabel(blocks[0].value, smallLabel, "real figure", true);
+    drawLabel(blocks[1].value, bigLabel, ratioLabel || "estimate", false);
+    const big = blocks[1];
+    if (big.grid) { big.mesh.remove(big.grid); big.grid.geometry.dispose(); }
+    big.grid = makeUnitGrid(divisions || 6);
+    big.grid.position.y = 0;
+    big.mesh.add(big.grid);
   };
-  scaleSet3D(SCALE_METRICS.params.smallLabel, SCALE_METRICS.params.bigLabel);
+  scaleSet3D(SCALE_METRICS.params.smallLabel,
+    SCALE_METRICS.params.bigLabel, 6, "×203 volume · est");
   themeRecolorers.push((p) => { scene.background = new THREE.Color(p.bg); });
 
   let dragging = false, px = 0, py = 0, ry = 0.35;
@@ -1258,13 +1294,12 @@ async function initScale3D() {
   function tick() {
     requestAnimationFrame(tick);
     if (!dragging && !reduceM) ry += 0.0012;
-    group.rotation.y = Math.sin(ry) * 0.4;
-    towers[0].cur += (scaleTargets.small - towers[0].cur) * 0.07;
-    towers[1].cur += (scaleTargets.big - towers[1].cur) * 0.07;
-    towers.forEach((t) => {
-      t.mesh.scale.y = Math.max(0.05, t.cur);
-      t.value.position.set(t.mesh.position.x, t.cur + 0.65, 0);
-    });
+    group.rotation.y = Math.sin(ry) * 0.35;
+    const big = blocks[1];
+    big.cur += (scaleTargetSide - big.cur) * 0.07;
+    big.mesh.scale.setScalar(Math.max(0.05, big.cur));
+    big.value.position.set(big.mesh.position.x, big.cur + 0.6, 0);
+    blocks[0].value.position.set(blocks[0].mesh.position.x, SMALL + 0.6, 0);
     if (box.clientWidth > 0) renderer.render(scene, camera); // skip GPU work while hidden
   }
   requestAnimationFrame(tick);

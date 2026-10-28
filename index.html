@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=19">
+<link rel="stylesheet" href="styles.css?v=20">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -523,8 +523,10 @@
     more patterns, more facts, and more subtle relationships between them — and it has seen
     more examples of every kind of problem during training. Its next-token guesses (lesson 5)
     are simply right more often, especially on rare and complicated things. Switch the measure
-    below and compare — the towers are drawn on a <strong>log scale</strong>, because on an
-    honest linear scale the little model would be a flat line you couldn't see.</p>
+    below and compare — the two blocks are drawn at <strong>true volume scale</strong>: the
+    small cube is your whole model, and the big block's volume is the real multiple of it.
+    A 200× gap sounds abstract; a block that swallows 200 of your model, drawn honestly,
+    isn't. (The grid carved into the big block shows roughly how many small cubes fit inside.)</p>
     <div class="controls scale-controls">
       <button type="button" class="scale-btn active" data-metric="params">Parameters</button>
       <button type="button" class="scale-btn" data-metric="training">Training tokens</button>
@@ -532,7 +534,7 @@
       <button type="button" class="scale-btn" data-metric="compute">Compute per token</button>
     </div>
     <div id="scaleCanvas" class="canvas-box"></div>
-    <p class="gauge-label">Small vs premium — drag to orbit · scroll to zoom · heights are log-scaled (each grid step up is roughly ×10)</p>
+    <p class="gauge-label">Small vs premium at true volume scale — drag to orbit · scroll to zoom · the big block's volume is the real ratio (its edge is the cube root of the ratio)</p>
     <p class="hint" id="scaleFallback" hidden>The 3D view needs an internet connection for its library on first load. The table below carries the same comparison.</p>
     <p class="stats" id="scaleNote"></p>
     <table class="compare-table">
@@ -700,6 +702,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=19"></script>
+<script type="module" src="app.js?v=20"></script>
 </body>
 </html>

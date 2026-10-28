@@ -195,6 +195,8 @@ document.getElementById("f").addEventListener("load", async () => {
   check("scaling: comparison table present",
     doc.querySelectorAll("#scaling .compare-table tbody tr").length >= 6);
   const noteBefore = doc.getElementById("scaleNote").textContent;
+  check("scaling: parameters shown at true volume scale",
+    noteBefore.includes("TRUE volume scale") && noteBefore.includes("200"));
   doc.querySelector('[data-metric="context"]').click();
   check("scaling: metric switch updates the explanation",
     doc.getElementById("scaleNote").textContent.includes("Context window") &&

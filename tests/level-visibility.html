@@ -268,6 +268,7 @@ document.getElementById("f").addEventListener("load", async () => {
     !!scaleCv && scaleCv.width > 0 && scaleCv.height > 0);
 
   // Language selector: Spanish and French translate the course, English restores it.
+  delete doc.getElementById("tokenInput").dataset.userEdited;
   const langSel = doc.getElementById("langSelect");
   check("language selector exists with en/es/fr",
     !!langSel && ["en", "es", "fr"].every((v) => [...langSel.options].some((o) => o.value === v)));
@@ -284,6 +285,9 @@ document.getElementById("f").addEventListener("load", async () => {
     !doc.querySelector("#quizList .quiz-q").textContent.includes("What does the model actually read?"));
   check("spanish: sound button label translates",
     doc.getElementById("soundBtn").textContent.includes("Sonido"));
+  check("spanish: lesson 1 sample text translates",
+    doc.getElementById("tokenInput").value !== "The quick brown fox jumps over the lazy dog." &&
+    doc.getElementById("tokenInput").value.length > 10);
   langSel.value = "fr";
   langSel.dispatchEvent(new win.Event("change"));
   check("french: intro heading and sound label switch",
@@ -293,6 +297,10 @@ document.getElementById("f").addEventListener("load", async () => {
   langSel.dispatchEvent(new win.Event("change"));
   check("english: original heading is restored",
     introH2.textContent === enIntro && doc.documentElement.lang === "en");
+  check("english: lesson 1 sample text and title are restored",
+    doc.getElementById("tokenInput").value === "The quick brown fox jumps over the lazy dog." &&
+    doc.title.includes("How language models work") &&
+    doc.querySelectorAll("#tokenRow .token").length > 0);
 
   document.getElementById("out").textContent =
     (failures ? "FAIL (" + failures + ")\n" : "PASS\n") + lines.join("\n");

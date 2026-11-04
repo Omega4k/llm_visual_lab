@@ -369,6 +369,14 @@ function setButtonText(btn, text) {
   }
   btn.appendChild(document.createTextNode(text));
 }
+const I18N_INPUT_ORIGINALS = {};
+for (const id of ["tokenInput", "ctxInput", "promptInput"]) {
+  const input = document.getElementById(id);
+  if (input) I18N_INPUT_ORIGINALS[id] = input.value;
+}
+const I18N_PARSE_PLACEHOLDER_ORIGINAL =
+  (document.getElementById("parseInput") || {}).placeholder || "";
+const I18N_TITLE_ORIGINAL = document.title;
 const CAP_STEP_ORIGINALS = {};
 document.querySelectorAll("[data-cap]").forEach((row) => {
   const div = row.querySelector(":scope > div");
@@ -409,17 +417,17 @@ function applyStaticLang(lang) {
   });
   document.documentElement.lang = lang;
   const dyn = dynDict(lang);
-  if (dyn.title) document.title = dyn.title;
+  document.title = lang === "en" ? I18N_TITLE_ORIGINAL : (dyn.title || I18N_TITLE_ORIGINAL);
   const langLabel = document.getElementById("langLabel");
-  if (langLabel && dyn.ui && dyn.ui.language_label) langLabel.textContent = dyn.ui.language_label;
+  if (langLabel) langLabel.textContent = lang === "en" ? "Language" : ((dyn.ui || {}).language_label || "Language");
   // Sample texts in inputs (only while the learner has not edited them).
-  const defaults = dyn.input_defaults || {};
+  const defaults = lang === "en" ? I18N_INPUT_ORIGINALS : (dyn.input_defaults || {});
   for (const id of ["tokenInput", "ctxInput", "promptInput"]) {
     const input = document.getElementById(id);
-    if (input && !input.dataset.userEdited && defaults[id]) input.value = defaults[id];
+    if (input && !input.dataset.userEdited && defaults[id]) { input.value = defaults[id]; input.dispatchEvent(new Event("input", { bubbles: true })); delete input.dataset.userEdited; }
   }
   const parseInput = document.getElementById("parseInput");
-  if (parseInput && defaults.parsePlaceholder) parseInput.placeholder = defaults.parsePlaceholder;
+  if (parseInput) parseInput.placeholder = lang === "en" ? I18N_PARSE_PLACEHOLDER_ORIGINAL : (defaults.parsePlaceholder || I18N_PARSE_PLACEHOLDER_ORIGINAL);
 }
 ["tokenInput", "ctxInput", "promptInput"].forEach((id) => {
   const input = document.getElementById(id);

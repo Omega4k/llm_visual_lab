@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LLM Visual Lab — How language models work</title>
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=24">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -91,7 +91,7 @@
     <h3>How to use this guide</h3>
     <ul class="intro-list">
       <li><strong>One lesson at a time.</strong> Pick from the menu on the left; the “Next lesson” button at the bottom of each lesson is the main path.</li>
-      <li><strong>Levels add, never replace.</strong> Beginner text never changes. Medium and Expert reveal extra tagged blocks at the end of a lesson — switch up in the sidebar Settings and read only what's new.</li>
+      <li><strong>Choose your depth.</strong> Start on Beginner. When a topic grabs you, switch to Medium or Expert in the sidebar Settings for more detail — you can switch back at any time.</li>
       <li><strong>Predict before you run.</strong> Guessing what will happen, then watching, is the fastest way to build intuition. Several lessons (and the capstone) are built around it.</li>
       <li><strong>Quizzes and progress</strong> live in the sidebar: two questions per lesson in the Quiz drawer, and “Mark complete” at each lesson's end tracks where you are.</li>
     </ul>
@@ -139,8 +139,7 @@
     <h3>Compare with a real tokenizer</h3>
     <p>This loads a real BPE tokenizer (GPT-2 family) in your browser and tokenizes the text
     above with it. Llama uses the same kind of algorithm with a different, larger vocabulary,
-    so the exact splits differ — your local Ollama build exposes no tokenize endpoint to ask
-    the real one (checked: it returns 404).</p>
+    so the exact splits differ.</p>
     <button id="realTokBtn" type="button">Tokenize with the real tokenizer</button>
     <div class="token-row" id="realTokenRow"></div>
     <p class="stats" id="realTokStats"></p>
@@ -166,6 +165,18 @@
     Closeness in this space literally means <em>“used in similar sentences.”</em> That is also why the
     geometry carries meaning: the direction from <em>man</em> to <em>king</em> is roughly the same
     direction as from <em>woman</em> to <em>queen</em> — royalty, learned from usage alone.</p>
+    <h3>How embeddings are actually stored</h3>
+    <p>The 3D cloud is a flattened picture, not the storage itself. Each embedding starts as a random list of
+    numbers and is a weight like any other: every time its token appears in training, gradient descent
+    (next lesson) nudges that list a little, and tokens used in similar sentences receive similar
+    nudges, so the clusters above organise themselves. What is actually stored is a table — one row
+    of numbers per token, looked up by token ID. In the small Llama used later in this lab that table
+    holds about 128,000 tokens, each a list of 2,048 numbers — thousands of dimensions, not three.
+    The cloud squashes those lists down to 3 axes so you can look at them; the closeness is real
+    (measured by the angle between the full lists), the 3D positions are only an approximation.
+    One more subtlety: the stored row for <em>bank</em> is the same in every sentence — the layers
+    in Lesson 6 rewrite it using context, so “river bank” and “money bank” end up different inside
+    the model even though they started from the same row.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>That list of numbers has a name: an <strong>embedding</strong> — a vector learned during training, not designed by anyone. Because words used in similar sentences get similar vectors, meaning shows up as distance in the cloud above: near means “used alike”, far means “used differently”.</p>
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Formally, each token ID indexes a row of the embedding matrix E ∈ ℝ<sup>V×d</sup>, where d is in the thousands in a real model; the cloud above projects a toy version down to 3D. Cosine proximity encodes distributional similarity, and directions can carry relational structure — the classic example is king − man + woman ≈ queen.</p>
   </section>
@@ -197,6 +208,15 @@
     but the loop is the same: guess, measure the error, nudge, repeat. Crucially, training is finished
     before you ever type a prompt; chatting with the model (<strong>inference</strong>) changes nothing
     inside it. It is not learning from you.</p>
+    <h3>Using a model does not retrain it</h3>
+    <p>Gradient descent needs a known correct answer to measure the loss against, and that only
+    exists in training data. While you are chatting with a finished model — <strong>inference</strong> —
+    the weights are frozen: there is no loss, no gradient, no backward pass and no nudging. The model
+    only runs forwards — read the prompt, predict the next token, add it, repeat (Lesson 5). If a
+    conversation seems to teach it something, that is the context window at work (Lesson 9): the words
+    sit in its short-term memory and shape the next prediction, but no weight changes, and it is all
+    forgotten when the context ends. Teaching a model something permanently always means another
+    training run, done offline by its makers — never the chat itself.</p>
     <h3>The loss landscape — gradient descent in 3D</h3>
     <p>Imagine every possible setting of the model as a place in a hilly landscape, where the height is how wrong it is. This landscape has <strong>three dips</strong>: two shallow ones and one deeper one. Training is walking downhill — but the ball can only feel the slope under its feet, that slope is the <strong>gradient</strong>, and it has no map. Which dip it ends up in depends on where it starts. Each step goes downhill by an amount set by the <strong>learning rate</strong>: too small, it crawls; too big, it leaps across the dip and climbs the other side. Try the three start buttons and watch the same rules land in different dips.</p>
     <div id="lossCanvas" class="canvas-box"></div>
@@ -702,6 +722,6 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=20"></script>
+<script type="module" src="app.js?v=21"></script>
 </body>
 </html>

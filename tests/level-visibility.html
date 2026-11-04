@@ -226,6 +226,29 @@ document.getElementById("f").addEventListener("load", async () => {
     doc.getElementById("capTally").textContent.includes("1 of 5"));
   doc.getElementById("capResetBtn").click();
 
+  // Icons + completion state (sidebar masks, button icons, nav check).
+  check("icons: every sidebar link has an SVG mask icon and a check span",
+    [...doc.querySelectorAll(".lesson-nav a")].every((a) =>
+      a.style.getPropertyValue("--nav-icon").includes("data:image/svg+xml") &&
+      !!a.querySelector(".nav-check")));
+  check("icons: action buttons carry an inline SVG icon",
+    ["generateBtn", "ragSearchBtn", "capRunBtn"].every((id) =>
+      !!doc.getElementById(id).querySelector(".btn-icon svg")));
+  check("icons: sound button shows icon plus current state label",
+    !!doc.getElementById("soundBtn").querySelector("svg") &&
+    doc.getElementById("soundBtn").textContent.includes("Sound:"));
+  doc.querySelector('.lesson-nav a[href="#tokens"]').click();
+  const completeBtn = doc.querySelector('.complete-btn[data-lesson="tokens"]');
+  const tokensCheck = doc.querySelector('.lesson-nav a[href="#tokens"] .nav-check');
+  completeBtn.click();
+  check("complete: label switches and sidebar check appears",
+    completeBtn.querySelector(".btn-label").textContent.includes("Completed") &&
+    completeBtn.classList.contains("is-complete") && tokensCheck.hidden === false);
+  completeBtn.click();
+  check("complete: second click undoes label and sidebar check",
+    completeBtn.querySelector(".btn-label").textContent === "Mark lesson complete" &&
+    !completeBtn.classList.contains("is-complete") && tokensCheck.hidden === true);
+
   // A 3D canvas created while its lesson was hidden must get a real size
   // when the lesson is shown (view switching re-fires window resize).
   doc.querySelector('.lesson-nav a[href="#embeddings"]').click();

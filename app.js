@@ -32,6 +32,9 @@ function setLevel(level, flashNew) {
   try { localStorage.setItem("llmLabLevel", level); } catch (e) { /* private mode */ }
   // Pilot (lessons 1 & 5): briefly highlight blocks this switch just revealed,
   // so levelling up means reading only the new text, not the lesson again.
+  if (flashNew && sndReady && newRank !== prevRank) {
+    if (newRank > prevRank) sndLevelUp(); else sndLevelDown();
+  }
   if (flashNew && newRank > prevRank) {
     document.querySelectorAll(".lvl-add").forEach((el) => {
       const rank = el.classList.contains("lvl-add-e") ? 2 : 1;
@@ -66,9 +69,13 @@ function setSidebar(open) {
 menuBtn.addEventListener("click", () =>
   setSidebar(!sidebar.classList.contains("open")));
 sidebarScrim.addEventListener("click", () => setSidebar(false));
+let sndReady = false;
+let currentViewId = null;
 function showLesson(id) {
   if (id === "showcase") id = "playground"; // merged into lesson 11
   if (!VIEW_IDS.includes(id)) id = "intro";
+  if (sndReady && currentViewId && currentViewId !== id) sndNav(id);
+  currentViewId = id;
   document.querySelectorAll("main > section.panel").forEach((sec) =>
     sec.classList.toggle("active-view", sec.id === id));
   document.querySelectorAll(".lesson-nav a").forEach((a) => {
@@ -115,35 +122,151 @@ try {
   if (savedTheme && ["amber", "ice", "emerald", "rose"].includes(savedTheme)) setTheme(savedTheme);
 } catch (e) { /* keep default */ }
 
-/* ---------- Sound (off by default, WebAudio blips) ---------- */
+/* ---------- Icons (inline SVG, decorative) ---------- */
+const ICON_PATHS = {
+  play: '<polygon points="8 5 19 12 8 19" fill="currentColor" stroke="none"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/>',
+  reset: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  down: '<line x1="12" y1="4" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>',
+  next: '<line x1="4" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  layers: '<polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/>',
+  volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  muted: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>',
+};
+const NAV_ICONS = {
+  intro: '<path d="M12 3l1.9 5.3L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.7z"/>',
+  tokens: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
+  embeddings: '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="7" r="2.2"/><circle cx="9" cy="18" r="2.2"/><circle cx="19" cy="17" r="2.2"/><path d="M8 7l7.5-.3M7 8l1.2 7.5M17 9.2l1.2 5.3M11 17l5.5.2"/>',
+  training: '<polyline points="3 4 3 20 21 20"/><polyline points="6.5 7 10.5 11.5 14 9.5 18.5 15.5"/><polyline points="18.5 11 18.5 15.5 14 15.5"/>',
+  attention: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.5" fill="currentColor"/>',
+  probabilities: '<line x1="4" y1="20" x2="20" y2="20"/><line x1="7" y1="20" x2="7" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="17" y1="20" x2="17" y2="15"/>',
+  journey: '<polygon points="12 2.5 21 7 12 11.5 3 7"/><polyline points="3.5 12 12 16.5 20.5 12"/><polyline points="3.5 17 12 21.5 20.5 17"/>',
+  parsing: '<circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M8 6l7.5 4.5M8 18l7.5-4.5M6 7.5v9"/>',
+  toymodel: '<path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M12 12l8-4.6M12 12v9.2M12 12L4 7.4"/>',
+  context: '<circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15.5 14"/>',
+  limits: '<path d="M12 3.5L22 20H2z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17.2" x2="12.01" y2="17.2"/>',
+  playground: '<circle cx="12" cy="12" r="9"/><polygon points="10 8 16.5 12 10 16" fill="currentColor" stroke="none"/>',
+  scaling: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  assistant: '<path d="M21 11.5a8.5 7.5 0 0 1-8.5 7.5c-1.2 0-2.4-.2-3.4-.7L3 20l1.8-3.9A7.4 7.4 0 0 1 3.5 11.5 8.5 7.5 0 0 1 12 4a8.5 7.5 0 0 1 9 7.5z"/>',
+  rag: '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="20.5" y1="20.5" x2="15.3" y2="15.3"/><path d="M7.5 10.5h6M10.5 7.5v6"/>',
+  capstone: '<path d="M5 21.5v-17"/><path d="M5 4.5h12.5l-2.8 4 2.8 4H5"/>',
+};
+function iconSvg(paths, cls) {
+  return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    paths + "</svg>";
+}
+function addIcon(el, name) {
+  if (!el || el.querySelector(".btn-icon")) return;
+  const span = document.createElement("span");
+  span.className = "btn-icon";
+  span.innerHTML = iconSvg(ICON_PATHS[name] || "", "icon-svg");
+  el.prepend(span);
+}
+document.querySelectorAll(".lesson-nav a").forEach((a) => {
+  const id = a.getAttribute("href").slice(1);
+  if (a.querySelector(".nav-check")) return;
+  const paths = (NAV_ICONS[id] || NAV_ICONS.intro).replaceAll("currentColor", "#000");
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    paths + "</svg>";
+  a.style.setProperty("--nav-icon", 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+  if (id === "intro" && a.firstChild) {
+    a.firstChild.textContent = a.firstChild.textContent.replace("✦ ", "");
+  }
+  const check = document.createElement("span");
+  check.className = "nav-check";
+  check.textContent = "✓";
+  check.hidden = true;
+  a.append(check);
+});
+const BUTTON_ICONS = {
+  menuBtn: "list", recheckBtn: "refresh", quizOpenBtn: "list",
+  generateBtn: "play", stopBtn: "stop", trainBtn: "play",
+  toyTrainBtn: "play", journeyPlayBtn: "play", lossStepBtn: "down",
+  stepBtn: "next", realTokBtn: "search", parseCustomBtn: "search",
+  ctxAddBtn: "plus", ragSearchBtn: "search", ragBuildBtn: "layers",
+  capRunBtn: "play", capParseBtn: "next", capExpertBtn: "next",
+};
+for (const [id, name] of Object.entries(BUTTON_ICONS)) {
+  addIcon(document.getElementById(id), name);
+}
+document.querySelectorAll('button[id$="ResetBtn"]').forEach((b) => addIcon(b, "reset"));
+
+/* ---------- Sound (off by default, WebAudio) ---------- */
 let audioCtx = null;
 let soundOn = false;
 const soundBtn = document.getElementById("soundBtn");
+function renderSoundBtn() {
+  soundBtn.innerHTML = iconSvg(soundOn ? ICON_PATHS.volume : ICON_PATHS.muted, "icon-svg btn-icon-svg") +
+    "<span>Sound: " + (soundOn ? "on" : "off") + "</span>";
+  soundBtn.setAttribute("aria-pressed", String(soundOn));
+}
 soundBtn.addEventListener("click", () => {
   soundOn = !soundOn;
-  soundBtn.textContent = soundOn ? "Sound: on" : "Sound: off";
-  soundBtn.setAttribute("aria-pressed", String(soundOn));
   if (soundOn) {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    blip(660, 0.07);
+    if (audioCtx.state === "suspended") audioCtx.resume();
   }
+  renderSoundBtn();
+  if (soundOn) sndSuccess();
 });
-function blip(freq, dur, delay) {
+function tone(freq, opts) {
   if (!soundOn || !audioCtx) return;
-  const t0 = audioCtx.currentTime + (delay || 0);
+  const o = opts || {};
+  const dur = o.dur || 0.08;
+  const t0 = audioCtx.currentTime + (o.delay || 0);
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.08, t0);
+  osc.type = o.type || "sine";
+  osc.frequency.setValueAtTime(freq, t0);
+  if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(30, o.slideTo), t0 + dur);
+  gain.gain.setValueAtTime(o.vol || 0.07, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   osc.connect(gain).connect(audioCtx.destination);
   osc.start(t0);
   osc.stop(t0 + dur);
 }
-function sndToken(step) { blip(480 + Math.min(600, step * 14), 0.05); }
+function blip(freq, dur, delay) { tone(freq, { dur: dur || 0.08, delay: delay || 0 }); }
+const SCALE_NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+function sndToken(step) { tone(480 + Math.min(600, step * 14), { dur: 0.05, vol: 0.05 }); }
 function sndDone() { blip(660, 0.08); blip(880, 0.1, 0.09); }
-function sndClick() { blip(520, 0.04); }
+function sndClick() { tone(520, { dur: 0.035, type: "triangle", vol: 0.04 }); }
+function sndNav(id) {
+  const i = Math.max(0, VIEW_IDS.indexOf(id));
+  const f = SCALE_NOTES[i % SCALE_NOTES.length] * (i >= SCALE_NOTES.length ? 1.5 : 1);
+  tone(f, { dur: 0.06, type: "triangle", vol: 0.05 });
+  tone(f * 1.335, { dur: 0.07, delay: 0.055, type: "triangle", vol: 0.04 });
+}
+function sndSuccess() { tone(660, { dur: 0.07, vol: 0.06 }); tone(990, { dur: 0.1, delay: 0.07, vol: 0.06 }); }
+function sndCorrect() { tone(739.99, { dur: 0.06, vol: 0.06 }); tone(1174.66, { dur: 0.11, delay: 0.06, vol: 0.06 }); }
+function sndWrong() { tone(196, { dur: 0.16, type: "square", vol: 0.035, slideTo: 123 }); }
+function sndComplete() {
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+    tone(f, { dur: 0.11, delay: i * 0.075, type: "triangle", vol: 0.06 }));
+}
+function sndFanfare() {
+  sndComplete();
+  [1046.5, 1318.5, 1567.98].forEach((f, i) =>
+    tone(f, { dur: 0.14, delay: 0.32 + i * 0.09, type: "triangle", vol: 0.06 }));
+}
+function sndLevelUp() { [440, 587.33, 880].forEach((f, i) => tone(f, { dur: 0.08, delay: i * 0.06, vol: 0.05 })); }
+function sndLevelDown() { tone(440, { dur: 0.07, vol: 0.05 }); tone(329.63, { dur: 0.09, delay: 0.06, vol: 0.05 }); }
+function sndStepSound(step) {
+  tone(SCALE_NOTES[Math.abs(step) % SCALE_NOTES.length], { dur: 0.06, type: "triangle", vol: 0.055 });
+}
+function sndDescent(loss) {
+  tone(170 + Math.min(4, Math.max(0, loss)) * 85, { dur: 0.055, vol: 0.045 });
+}
+function sndGenerateStart() { tone(280, { dur: 0.16, vol: 0.05, slideTo: 660 }); }
+function sndGenerateStop() { tone(520, { dur: 0.13, vol: 0.05, slideTo: 240 }); }
+renderSoundBtn();
+sndReady = true;
 document.addEventListener("click", (e) => {
   if (e.target.closest("button") && e.target.id !== "soundBtn") sndClick();
 });
@@ -609,6 +732,7 @@ async function generate() {
   document.getElementById("debugStats").textContent = "Generating…";
   generateBtn.disabled = true;
   stopBtn.disabled = false;
+  sndGenerateStart();
   currentAbort = new AbortController();
   // The merged journey view rides on this same generation: animate the
   // prompt's tokens rising, then show the first prediction's towers.
@@ -706,7 +830,9 @@ async function generate() {
   }
 }
 generateBtn.addEventListener("click", generate);
-stopBtn.addEventListener("click", () => { if (currentAbort) currentAbort.abort(); });
+stopBtn.addEventListener("click", () => {
+  if (currentAbort) { sndGenerateStop(); currentAbort.abort(); }
+});
 
 /* ---------- Lesson 11: candidate towers in 3D (real logprobs) ---------- */
 async function initCandidate3D() {
@@ -1470,6 +1596,8 @@ document.getElementById("stepBtn").addEventListener("click", () => {
   }
   storyPicked.push(picked);
   storyStep += 1;
+  sndStepSound(storyStep);
+  if (storyStep >= STORY_STEPS.length) sndSuccess();
   renderStory(picked);
   if (storyStep < STORY_STEPS.length) {
     document.getElementById("stepNote").textContent =
@@ -1678,6 +1806,7 @@ function judgePendingTrap(answerText) {
   if (!result) return;
   trapState[key] = { ...(trapState[key] || {}), result };
   saveTraps();
+  if (result === "fall") sndWrong(); else sndCorrect();
   renderTrapScore();
   renderCapstone();
   showError("Trap judged: the model " +
@@ -2450,12 +2579,14 @@ function renderProgress() {
   document.querySelectorAll(".complete-btn").forEach((btn) => {
     const done = completedLessons.has(btn.dataset.lesson);
     btn.classList.toggle("is-complete", done);
-    btn.textContent = done ? "Completed ✓ — click to undo" : "Mark lesson complete";
+    const label = btn.querySelector(".btn-label");
+    const text = done ? "Completed ✓ — click to undo" : "Mark lesson complete";
+    if (label) label.textContent = text; else btn.textContent = text;
   });
   document.querySelectorAll(".lesson-nav a").forEach((a) => {
     const id = a.getAttribute("href").slice(1);
-    a.textContent = a.textContent.replace(/ ✓$/, "") +
-      (completedLessons.has(id) ? " ✓" : "");
+    const check = a.querySelector(".nav-check");
+    if (check) check.hidden = !completedLessons.has(id);
   });
   const quizCount = document.getElementById("quizOpenCount");
   if (quizCount) quizCount.textContent = completedLessons.size + "/" + LESSON_ORDER.length;
@@ -2470,6 +2601,9 @@ function markComplete(id, silent) {
   completedLessons.add(id);
   try { localStorage.setItem("llmLabProgress", JSON.stringify([...completedLessons])); } catch (e) {}
   renderProgress();
+  if (!silent) {
+    if (completedLessons.size >= LESSON_ORDER.length) sndFanfare(); else sndComplete();
+  }
   if (!silent) showError("Lesson complete: " + LESSON_TITLES[id] + " — " +
     completedLessons.size + " of " + LESSON_ORDER.length + " done.");
 }
@@ -2594,6 +2728,7 @@ LESSON_ORDER.forEach((id, idx) => {
           const correct = oi === item.a;
           btn.classList.add(correct ? "correct" : "wrong");
           feedback.textContent = (correct ? "Correct. " : "Not quite. ") + item.why;
+          if (correct) sndCorrect(); else sndWrong();
           if (correct) {
             answered.add(qi);
             opts.querySelectorAll("button").forEach((b) => { b.disabled = true; });
@@ -2617,6 +2752,11 @@ LESSON_ORDER.forEach((id, idx) => {
   completeBtn.type = "button";
   completeBtn.className = "complete-btn";
   completeBtn.dataset.lesson = id;
+  addIcon(completeBtn, "check");
+  const completeLabel = document.createElement("span");
+  completeLabel.className = "btn-label";
+  completeLabel.textContent = "Mark lesson complete";
+  completeBtn.appendChild(completeLabel);
   completeBtn.addEventListener("click", () => {
     if (completedLessons.has(id)) {
       completedLessons.delete(id);
@@ -2745,6 +2885,7 @@ function lossStep() {
   }
   lossRenderMath(prevW, grad, lr);
   if (lossUpdate3D) lossUpdate3D(false);
+  sndDescent(lossFn(lossState.w[0], lossState.w[1]));
   const g = lossGrad(lossState.w[0], lossState.w[1]);
   if (Math.hypot(g[0], g[1]) < 0.03) {
     const near = LOSS_MINIMA.reduce((best, m) => {

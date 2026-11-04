@@ -52,7 +52,7 @@ h2 { margin-top: 0; font-size: 1.35rem; color: var(--accent); }
 main { padding: 1rem 2rem 2rem; max-width: 62rem; margin: 0 auto; }
 /* One lesson at a time, chosen from the left sidebar. */
 .layout {
-  display: grid; grid-template-columns: 15rem minmax(0, 1fr);
+  display: grid; grid-template-columns: 17rem minmax(0, 1fr);
   max-width: 88rem; margin: 0 auto; align-items: start;
 }
 .layout main { margin: 0 auto; width: 100%; }
@@ -546,31 +546,45 @@ button:hover:not(:disabled) { filter: brightness(1.12); }
 .gauge-fill { background: linear-gradient(90deg, var(--bar), var(--accent-2)); }
 ::selection { background: var(--accent-2); color: #14181d; }
 
+#intro        { --lesson: #e0a458; }
 #tokens       { --lesson: #f5a524; }
 #embeddings   { --lesson: #38bdf8; }
 #training     { --lesson: #4ade80; }
 #attention    { --lesson: #c084fc; }
 #probabilities{ --lesson: #fb7185; }
 #journey      { --lesson: #22d3ee; }
+#parsing      { --lesson: #facc15; }
 #toymodel     { --lesson: #f472b6; }
 #context      { --lesson: #a3e635; }
 #limits       { --lesson: #fb923c; }
 #playground   { --lesson: #818cf8; }
+#scaling      { --lesson: #e879f9; }
+#assistant    { --lesson: #2dd4bf; }
+#rag          { --lesson: #60a5fa; }
+#capstone     { --lesson: #a78bfa; }
 section.panel { border-top: 3px solid var(--lesson, var(--accent)); }
 section.panel h2 { color: var(--lesson, var(--accent)); }
 .panel::before, .panel::after { border-color: var(--lesson, var(--accent-dark)); }
 section.panel .telemetry { color: var(--lesson, var(--label-dim)); }
 
-.lesson-nav a:nth-child(1)  { --chip: #f5a524; }
-.lesson-nav a:nth-child(2)  { --chip: #38bdf8; }
-.lesson-nav a:nth-child(3)  { --chip: #4ade80; }
-.lesson-nav a:nth-child(4)  { --chip: #c084fc; }
-.lesson-nav a:nth-child(5)  { --chip: #fb7185; }
-.lesson-nav a:nth-child(6)  { --chip: #22d3ee; }
-.lesson-nav a:nth-child(7)  { --chip: #f472b6; }
-.lesson-nav a:nth-child(8)  { --chip: #a3e635; }
-.lesson-nav a:nth-child(9)  { --chip: #fb923c; }
-.lesson-nav a:nth-child(10) { --chip: #818cf8; }
+/* Chip colours keyed by href (not nth-child: group headings shift positions),
+   kept in sync with the --lesson hues above so every lesson gets the style. */
+.lesson-nav a[href="#intro"]        { --chip: #e0a458; }
+.lesson-nav a[href="#tokens"]       { --chip: #f5a524; }
+.lesson-nav a[href="#embeddings"]   { --chip: #38bdf8; }
+.lesson-nav a[href="#training"]     { --chip: #4ade80; }
+.lesson-nav a[href="#attention"]    { --chip: #c084fc; }
+.lesson-nav a[href="#probabilities"]{ --chip: #fb7185; }
+.lesson-nav a[href="#journey"]      { --chip: #22d3ee; }
+.lesson-nav a[href="#parsing"]      { --chip: #facc15; }
+.lesson-nav a[href="#toymodel"]     { --chip: #f472b6; }
+.lesson-nav a[href="#context"]      { --chip: #a3e635; }
+.lesson-nav a[href="#limits"]       { --chip: #fb923c; }
+.lesson-nav a[href="#playground"]   { --chip: #818cf8; }
+.lesson-nav a[href="#scaling"]      { --chip: #e879f9; }
+.lesson-nav a[href="#assistant"]    { --chip: #2dd4bf; }
+.lesson-nav a[href="#rag"]          { --chip: #60a5fa; }
+.lesson-nav a[href="#capstone"]     { --chip: #a78bfa; }
 .lesson-nav a {
   border-color: color-mix(in srgb, var(--chip, var(--panel-edge)) 55%, transparent);
   background: color-mix(in srgb, var(--chip, var(--panel)) 16%, var(--panel));
@@ -582,3 +596,25 @@ section.panel .telemetry { color: var(--lesson, var(--label-dim)); }
 .level-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
 .quiz-opt.correct { background: linear-gradient(135deg, #4ade80, #22d3ee); }
 .complete-btn.is-complete { background: linear-gradient(135deg, #4ade80, #a3e635); }
+
+/* ---------- Icons ---------- */
+.icon-svg { width: 15px; height: 15px; flex: none; display: block; }
+.btn-icon { display: inline-flex; align-items: center; margin-right: 0.38rem; vertical-align: -0.18rem; }
+.btn-icon .icon-svg { width: 14px; height: 14px; }
+button { align-items: center; }
+#soundBtn { display: inline-flex; align-items: center; gap: 0.38rem; }
+#soundBtn .btn-icon-svg { margin-right: 0; }
+.sidebar .lesson-nav a {
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.sidebar .lesson-nav a::before {
+  content: ""; width: 15px; height: 15px; flex: none;
+  background: var(--chip, var(--accent));
+  -webkit-mask-image: var(--nav-icon); mask-image: var(--nav-icon);
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  mask-mode: alpha;
+}
+.nav-check { color: var(--good); font-weight: 700; flex: none; margin-left: auto; pointer-events: none; }
+.chapter-card strong::before { content: none; }

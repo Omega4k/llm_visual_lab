@@ -60,6 +60,7 @@ Optional upgrade for better generations (2.0 GB): `llama3.2:3b`
 
 ## Features
 
+- Language selector (English / Español / Français) in the sidebar Settings — the whole course, quizzes included, is translated; the choice is saved locally
 - Knowledge levels (Beginner / Medium / Expert), four colour themes, optional sound. All lessons are additive — the base text never changes, higher levels only reveal tagged Medium/Expert blocks at the end of the lesson (highlighted briefly on level-up). One lesson is shown at a time, picked from the left sidebar (hash links like `#tokens` still work; on narrow screens the sidebar becomes a drawer). The sidebar also holds all settings: knowledge level, sound, theme, quiz access, and course progress
 - Progress tracking, saved locally; checkpoint quizzes (2 questions per lesson) live in a slide-in Quiz drawer (button in the top bar), separate from the lessons
 - "Mark complete" plus a Next-lesson button on every lesson

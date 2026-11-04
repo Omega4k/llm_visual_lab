@@ -77,6 +77,13 @@
         <option value="rose">Rose</option>
       </select>
     </label>
+    <label class="theme-label"><span id="langLabel">Language</span>
+      <select id="langSelect" aria-label="Language">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+      </select>
+    </label>
     <button id="quizOpenBtn" type="button">Quiz <span id="quizOpenCount">0/15</span></button>
   </div>
 </aside>
@@ -84,8 +91,8 @@
 <main>
   <section id="intro" class="panel">
     <h2>✦ Introduction — start here</h2>
-    <p>Welcome to the workshop. This course takes one small language model — a real one,
-    running on this computer — and takes it apart piece by piece, so that when a big model
+    <p>Welcome to the workshop. This course takes apart one small language model — a real one,
+    running on this computer — piece by piece, so that when a big model
     does something that looks like magic, you'll know which piece did it. No maths degree
     needed: every idea comes with something you can press, drag, type into, or break.</p>
     <h3>How to use this guide</h3>
@@ -153,11 +160,11 @@
     <div id="embedCanvas" class="canvas-box"></div>
     <p class="note" id="embedFallback" hidden>The 3D view needs an internet connection for its
     library on first load. The idea: each labelled point is a word, and distance means similarity.</p>
-    <p><strong>Try this:</strong> find the two clusters. Why do you think <em>king</em> and <em>queen</em>
+    <p><strong>Try this:</strong> find the royalty words and the vehicle words. Why do you think <em>king</em> and <em>queen</em>
     sit apart from <em>car</em> and <em>bus</em>, even though all four are nouns?</p>
     <h3>Why are <em>king</em> and <em>queen</em> close together?</h3>
     <p>Nobody told the model they are related. During <strong>training</strong> (next lesson) it read
-    billions of sentences and kept adjusting these positions so it could guess masked or next words
+    billions of sentences and kept adjusting these positions so it could guess the next word
     better. <em>King</em> and <em>queen</em> show up in almost interchangeable sentences —
     “the ___ wore a crown”, “the ___ ruled the kingdom”, “long live the ___” — so the positions that
     best predict those shared contexts end up nearly identical. <em>Car</em> and <em>bus</em> share a
@@ -201,7 +208,7 @@
       2 · Measure: <span class="mono">loss = −log p(correct token)</span> — huge when it was confidently wrong, near zero when right.<br>
       3 · Blame: each weight gets a gradient <span class="mono">∂loss/∂w</span> — its personal share of the blame (the chain rule carries the error backwards, layer by layer: “backpropagation”).<br>
       4 · Nudge: <span class="mono">w ← w − η · ∂loss/∂w</span>, with learning rate <span class="mono">η</span> small (the toy model in lesson 8 uses η = 0.4) so it improves instead of jumping past the answer.<br>
-      Repeat billions of times and the loss landscape is slowly descended — like walking downhill in fog, always stepping along the steepest downward slope you can feel underfoot.
+      Repeat that billions of times, and the loss slowly falls — like walking downhill in fog, always stepping along the steepest downward slope you can feel underfoot.
     </div>
     <p class="note">Toy model, real principle. The real thing trains on trillions of tokens for weeks
     on thousands of processors, and the “words” are tokens in a space with thousands of dimensions —
@@ -268,7 +275,7 @@
 
   <section id="probabilities" class="panel">
     <h2>5 · Next token — a weighted coin flip</h2>
-    <p>The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted dice. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the dice fair (wild) or loaded (safe).</p>
+    <p>The model doesn't pick the next word outright. It gives every possible word a score, turns scores into odds, and rolls a weighted die. Press <strong>Step</strong> to pick one word at a time. The temperature slider makes the die fairer (wild) or more loaded (safe).</p>
     <p class="story" id="storyText">The capital of France is</p>
     <div class="prob-bars" id="probBars"></div>
     <div class="controls">
@@ -320,8 +327,8 @@
     <p class="note">Schematic teaching model — the real model stacks layers like this sketch,
     but the Ollama API does not expose its real internal numbers, so these values are illustrative,
     shaped like real behaviour: early layers handle position and neighbours, middle layers resolve
-    references like “it”, late layers commit to an answer. For a model's true insides, see the
-    next lesson — a tiny model that really trains in this page.</p>
+    references like “it”, late layers commit to an answer. For a model's true insides, see
+    Lesson 8 — a tiny model that really trains in this page.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>There is no single path through a transformer: <strong>every token passes through every layer</strong>. Each layer runs <strong>attention</strong> (mixing between tokens) then an <strong>MLP</strong> (processing within a token) — two different jobs, one rewriting what a token knows about its neighbours, the other about itself. That pair is what rewrites the token's <strong>representation</strong> as it rises.</p>
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>A forward pass is a residual stream: x<sub>l+1</sub> = x<sub>l</sub> + Attn(x<sub>l</sub>) + MLP(x<sub>l</sub> + Attn), per layer, with all positions processed in parallel. Early layers mostly encode position and syntax, middle layers resolve reference, and late layers align the stream with the unembedding so the final logits favour the answer. The bars above show 16 of the thousands of numbers in that stream.</p>
   </section>
@@ -416,7 +423,7 @@
 
   <section id="context" class="panel">
     <h2>9 · Context — why it forgets</h2>
-    <p>The model can only remember a limited amount of your conversation. When too much has been said, the oldest words fall away and are forgotten — it can't miss them, because for the model they no longer exist. Add sentences and watch the beginning disappear.</p>
+    <p>The model can only remember a limited amount of your conversation. When too much has been said, the oldest words fall away and are forgotten — the model never notices, because for it they no longer exist. Add sentences and watch the beginning disappear.</p>
     <div class="ctx-window" id="ctxWindow" aria-live="polite"></div>
     <p class="stats"><span id="ctxCount">0</span> / 18 tokens in window · <span id="ctxDropped">0</span> tokens forgotten</p>
     <p class="stats ctx-ghost-row" id="ctxGhostRow" hidden>Just pushed out: <span id="ctxGhost"></span></p>
@@ -475,8 +482,8 @@
     <p class="stats" id="trapTally">Predictions correct: 0 of 0 traps judged.</p>
     <button type="button" id="trapResetBtn">Reset scoreboard</button>
     <p class="note">Why it fails: counting needs letters, but the model sees tokens (lesson 1);
-    citations are easy to imitate without existing; and the maths answer that “sounds right”
-    (10 cents) out-competes the correct one (5 cents) unless the model slows down.
+    citations are easy to imitate even when they don't exist; and the maths answer that “sounds right”
+    (10 cents) beats the correct one (5 cents) unless the model slows down.
     Bigger models fall for these less — none are immune.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>The reason is in the training: it optimises for plausible text, not verified truth. With no fact database and no self-check, gaps get filled fluently — that failure mode is called <strong>hallucination</strong>. Small models do it constantly; watch for it when the traps run in lesson 11.</p>
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>The objective is likelihood, not truth: nothing in next-token training grounds a claim, and decoding will happily continue a false premise in perfect style. Expect fabricated citations, tokenisation-driven counting failures, and high-probability wrong answers (the 10¢ bat-and-ball lure). Larger models reduce all three — they eliminate none.</p>
@@ -528,13 +535,13 @@
       </ol>
     </div>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>The model behind the button is a real, small Llama running locally via Ollama. It generates <strong>autoregressively</strong> — one token at a time, sampling each next token from its probability distribution at your chosen temperature, then feeding that token back in. The towers above are the real top-5 candidates with their probabilities (from Ollama logprobs) for the token you clicked — the same softmax competition from lesson 5, now with real numbers. Tower height uses a square-root scale so small probabilities stay visible.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Live inference against llama3.2:1b on localhost:11434, streamed token-by-token from <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>. Each chunk is one token sampled from softmax(z/T) at your T; the full context is reprocessed per token (KV-cached server-side). Probabilities are <span class="mono">exp(logprob)</span>, “all others” is the remaining mass over the ~128k vocabulary, and tower height ∝ √p (noted, not hidden). One honesty note on the journey view: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation, the 16-layer count (real, via <span class="mono">/api/show</span>), the streamed output and the candidate probabilities are real. The full debug breakdown is in the Expert debug panel above.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Live inference against llama3.2:1b on localhost:11434, streamed token-by-token from <span class="mono">/api/generate</span> with <span class="mono">logprobs + top_logprobs=5</span>. Each chunk is one token sampled from softmax(z/T) at your T; the full context is reprocessed per token (KV-cached server-side). Probabilities are <span class="mono">exp(logprob)</span>, “all others” is the remaining mass over the ~128k vocabulary, and tower height is proportional to √p, so small probabilities stay visible. One honesty note on the journey view: Ollama exposes no per-layer internals, so the layer pass is a schematic replay timed to your tokens — but the tokenisation, the 16-layer count (real, via <span class="mono">/api/show</span>), the streamed output and the candidate probabilities are real. The full debug breakdown is in the Expert debug panel above.</p>
   </section>
 
   <section id="scaling" class="panel">
     <h2>12 · Small vs premium — why scale makes it smarter</h2>
     <p>Everything you have done so far used a model with about a billion knobs, running on
-    your own computer. Premium models — the big hosted ones, like muse-wonder — work exactly
+    your own computer. Premium models — the big hosted ones — work exactly
     the same way: tokens in, embeddings, attention, next-token probabilities out. There is
     no secret extra ingredient in the recipe. The difference is <strong>scale, polish, and
     where it runs</strong>: vastly more knobs, trained on vastly more text, finished with
@@ -558,7 +565,7 @@
     <p class="hint" id="scaleFallback" hidden>The 3D view needs an internet connection for its library on first load. The table below carries the same comparison.</p>
     <p class="stats" id="scaleNote"></p>
     <table class="compare-table">
-      <thead><tr><th>Measure</th><th>Llama 3.2 1B (yours, real figures)</th><th>Premium class (e.g. muse-wonder)</th></tr></thead>
+      <thead><tr><th>Measure</th><th>Llama 3.2 1B (yours, real figures)</th><th>Premium class (large hosted models)</th></tr></thead>
       <tbody>
         <tr><td>Parameters</td><td>1.23 billion</td><td>Not published — estimated in the hundreds of billions class</td></tr>
         <tr><td>Layers / embedding size</td><td>16 layers · 2,048 numbers per token</td><td>Not published — far deeper and wider</td></tr>
@@ -616,7 +623,7 @@
     recordings of a specific model. Your local Llama is an instruction-tuned model already;
     the base column is what its untuned sibling would tend to do with the same text.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>Stage 2 (instruction tuning, or SFT) trains on thousands of examples of “instruction → good response”, so question-shaped input starts predicting answer-shaped output. Stage 3 ranks several candidate answers with human (or AI) preferences and nudges the model toward the winners — helpful, honest, harmless is the usual slogan. The chat template tokens from lesson 11's debug strip are part of this: they mark who is speaking, and the tuned model has learned that after the user's turn ends, an assistant's turn — an answer, not more questions — begins.</p>
-    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Mechanically, stages 2–3 are still lesson 3: gradient descent on next-token loss. SFT is ordinary fine-tuning on curated demonstrations. Preference training classically fits a reward model to human rankings, then optimises the policy against it with RL (PPO) under a KL penalty to the SFT model; newer pipelines (DPO and relatives) skip the explicit reward model and optimise directly on chosen/rejected pairs. The KL leash matters: without it, reward hacking eats the model — it finds degenerate text the reward model over-scores. Known side-effects to watch for in the wild: sycophancy (agreeing with the user's premise), refusal styles that vary by topic, and an “alignment tax” on some raw capabilities. The system prompt is parsed like any other tokens (lesson 7) but sits earlier in the context and, in tuned models, carries trained-in priority: instruction hierarchy is a learned behaviour, not a hard access-control system — which is exactly why prompt injection (lesson 10's missing half) works at all.</p>
+    <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Mechanically, stages 2–3 are still lesson 3: gradient descent on next-token loss. SFT is ordinary fine-tuning on curated demonstrations. Preference training classically fits a reward model to human rankings, then optimises the policy against it with RL (PPO) under a KL penalty to the SFT model; newer pipelines (DPO and relatives) skip the explicit reward model and optimise directly on chosen/rejected pairs. The KL leash matters: without it, reward hacking eats the model — it finds degenerate text the reward model over-scores. Known side-effects to watch for in the wild: sycophancy (agreeing with the user's premise), refusal styles that vary by topic, and an “alignment tax” on some raw capabilities. The system prompt is parsed like any other tokens (lesson 7) but sits earlier in the context and, in tuned models, carries trained-in priority: instruction hierarchy is a learned behaviour, not a hard access-control system — which is exactly why prompt injection can work at all.</p>
   </section>
 
   <section id="rag" class="panel">
@@ -646,8 +653,8 @@
     <div class="math-box rag-prompt" id="ragPrompt" hidden></div>
     <p class="stats" id="ragAnswer"></p>
     <p class="note">The similarity scores here are real arithmetic on this toy archive
-    (word-overlap vectors, cosine distance — a miniature of lesson 2's geometry with
-    learned embeddings swapped for counting). Real systems embed with the model itself,
+    (word-overlap vectors, cosine similarity — a miniature of lesson 2's geometry with
+    learned embeddings swapped for counting). Real systems use a dedicated embedding model,
     search millions of chunks with approximate nearest neighbours, and re-rank.</p>
     <p class="lvl-add lvl-add-m"><span class="lvl-add-tag">Medium</span>Notice what retrieval does to the failure modes you know: the knowledge now lives <em>outside</em> the weights, so it can be updated, cited, and deleted without retraining; the context window (lesson 9) becomes working memory instead of the whole world; and hallucination (lesson 10) drops when the answer is copied from evidence — though it returns the moment the retriever fetches the wrong chunk confidently. Chunk size is a real dial: too small and the answer's other half is in the next chunk; too big and you pay tokens (lesson 12's compute) to paste mostly-irrelevant text.</p>
     <p class="lvl-add lvl-add-e"><span class="lvl-add-tag">Expert</span>Production RAG is a pipeline, and each stage has its own metrics: chunking (fixed, recursive, or semantic boundaries; overlap to protect cross-boundary answers), embedding model choice (dimension, domain fit), index (exact cosine for small corpora, HNSW/IVF approximate search at scale, trading recall for latency), hybrid retrieval (dense vectors plus BM25 keyword match — pure semantics misses exact names and numbers), re-ranking with a cross-encoder, and finally generation conditioned on the retrieved set. Evaluation splits in two: retrieval quality (recall@k — was the gold chunk even pasted in?) versus generation faithfulness (did the answer stay inside the evidence?). Most “RAG doesn't work” reports are retrieval failures wearing generation's clothes. And the security footnote: pasted documents are tokens too — a poisoned chunk can carry instructions, which is prompt injection arriving by the front door.</p>
@@ -722,6 +729,8 @@
 </aside>
 
 <div class="error-banner" id="errorBanner" hidden></div>
-<script type="module" src="app.js?v=21"></script>
+<script src="i18n-es.js?v=1"></script>
+<script src="i18n-fr.js?v=1"></script>
+<script type="module" src="app.js?v=23"></script>
 </body>
 </html>

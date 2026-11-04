@@ -11,6 +11,10 @@ try {
 
 const banner = document.getElementById("errorBanner");
 function showError(msg) {
+  try {
+    const msgs = dynDict(currentLang).messages || {};
+    if (msgs[msg]) msg = msgs[msg];
+  } catch (e) { /* language not ready yet; keep original */ }
   banner.textContent = msg;
   banner.hidden = false;
   clearTimeout(showError._t);
@@ -203,8 +207,18 @@ let audioCtx = null;
 let soundOn = false;
 const soundBtn = document.getElementById("soundBtn");
 function renderSoundBtn() {
+  let label = "Sound: " + (soundOn ? "on" : "off");
+  try {
+    const lang = localStorage.getItem("llmLabLang") || "en";
+    const dyn = lang === "es" ? window.I18N_DYN_ES : lang === "fr" ? window.I18N_DYN_FR : null;
+    if (dyn && dyn.ui) label = soundOn ? (dyn.ui.sound_on || label) : (dyn.ui.sound_off || label);
+    if (typeof currentLang === "string" && dynDict(currentLang).ui) {
+      const ui = dynDict(currentLang).ui;
+      label = soundOn ? (ui.sound_on || label) : (ui.sound_off || label);
+    }
+  } catch (e) { /* keep English label */ }
   soundBtn.innerHTML = iconSvg(soundOn ? ICON_PATHS.volume : ICON_PATHS.muted, "icon-svg btn-icon-svg") +
-    "<span>Sound: " + (soundOn ? "on" : "off") + "</span>";
+    "<span>" + label + "</span>";
   soundBtn.setAttribute("aria-pressed", String(soundOn));
 }
 soundBtn.addEventListener("click", () => {
@@ -267,6 +281,179 @@ function sndGenerateStart() { tone(280, { dur: 0.16, vol: 0.05, slideTo: 660 });
 function sndGenerateStop() { tone(520, { dur: 0.13, vol: 0.05, slideTo: 240 }); }
 renderSoundBtn();
 sndReady = true;
+
+/* ---------- Language (en / es / fr) ---------- */
+let currentLang = "en";
+try {
+  const savedLang = localStorage.getItem("llmLabLang");
+  if (["en", "es", "fr"].includes(savedLang)) currentLang = savedLang;
+} catch (e) { /* keep English */ }
+function staticDict(lang) {
+  return lang === "es" ? (window.I18N_ES || {}) : lang === "fr" ? (window.I18N_FR || {}) : {};
+}
+function dynDict(lang) {
+  return lang === "es" ? (window.I18N_DYN_ES || {}) : lang === "fr" ? (window.I18N_DYN_FR || {}) : {};
+}
+function i18nT(key, vars) {
+  const ui = (dynDict(currentLang).ui || {});
+  let s = ui[key];
+  if (typeof s !== "string") return null;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll("{" + k + "}", String(v));
+  return s;
+}
+function lessonTitle(id) {
+  const titles = dynDict(currentLang).lesson_titles || {};
+  return titles[id] || (typeof LESSON_TITLES !== "undefined" ? LESSON_TITLES[id] : id);
+}
+/* Capture translatable static elements, keyed <scope>.<n> in DOM order.
+   Mirrors the extraction used to build the translation dictionaries. */
+const I18N_ORIGINALS = [];
+(function captureI18n() {
+  const INLINE = new Set(["STRONG", "EM", "SPAN", "SUP", "SUB", "BR", "CODE", "A", "B", "I"]);
+  const TAGS = new Set(["H2", "H3", "H4", "P", "LI", "BUTTON", "OPTION", "TH", "TD", "A", "DIV", "SPAN"]);
+  const DYNAMIC_IDS = new Set(["sharpNote", "scaleNote", "ragAnswer", "capTally", "trapTally", "progressLabel", "statusText", "lossMath"]);
+  const scopes = [];
+  const header = document.querySelector("header.topbar");
+  if (header) scopes.push(["chrome", header]);
+  const sidebarEl = document.getElementById("sidebar");
+  if (sidebarEl) scopes.push(["sidebar", sidebarEl]);
+  document.querySelectorAll("main > section.panel").forEach((sec) => scopes.push([sec.id, sec]));
+  const footer = document.querySelector("footer");
+  if (footer) scopes.push(["footer", footer]);
+  const quizDrawerEl = document.getElementById("quizDrawer");
+  if (quizDrawerEl) scopes.push(["quiz", quizDrawerEl]);
+  function hasDescId(el) { return !!el.querySelector("[id]"); }
+  function hasBadChild(el) {
+    for (const d of el.querySelectorAll("*")) { if (d.closest("svg")) continue; if (!INLINE.has(d.tagName)) return true; }
+    return false;
+  }
+  for (const [scope, root] of scopes) {
+    const cands = [];
+    root.querySelectorAll("*").forEach((el) => {
+      if (!TAGS.has(el.tagName)) return;
+      if (el.tagName === "DIV" && !el.classList.contains("math-box")) return;
+      if (el.classList.contains("cap-state")) return;
+      if (el.id === "quizList" || el.id === "errorBanner") return;
+      if (DYNAMIC_IDS.has(el.id)) return;
+      if (el.parentElement && el.parentElement.closest(".cap-step") && el.parentElement.classList.contains("cap-step")) return;
+      if (el.closest(".cap-step > div")) return;
+      if (hasDescId(el)) return;
+      if (hasBadChild(el)) return;
+      const txt = el.innerHTML.trim();
+      if (!txt || !/[A-Za-z]/.test(txt)) return;
+      cands.push(el);
+    });
+    const outermost = cands.filter((el) => !cands.some((o) => o !== el && o.contains(el)));
+    outermost.forEach((el, n) => {
+      const key = scope + "." + n;
+      el.dataset.i18nKey = key;
+      I18N_ORIGINALS.push({ el, key, html: el.innerHTML });
+    });
+  }
+})();
+const DYN_BTN_TARGETS = [
+  ['.cap-pred[data-cap-pred="fall"]', "cap_fall"],
+  ['.cap-pred[data-cap-pred="survive"]', "cap_survive"],
+  ["#capParseBtn", "cap_parse_btn"],
+  ["#capRunBtn", "cap_run_btn"],
+  ["#capExpertBtn", "cap_expert_btn"],
+];
+const DYN_BTN_ORIGINALS = new Map();
+DYN_BTN_TARGETS.forEach(([sel]) => {
+  const btn = document.querySelector(sel);
+  if (btn) DYN_BTN_ORIGINALS.set(sel, btn.textContent.trim());
+});
+function setButtonText(btn, text) {
+  for (const node of btn.childNodes) {
+    if (node.nodeType === 3 && node.textContent.trim()) { node.textContent = text; return; }
+  }
+  btn.appendChild(document.createTextNode(text));
+}
+const CAP_STEP_ORIGINALS = {};
+document.querySelectorAll("[data-cap]").forEach((row) => {
+  const div = row.querySelector(":scope > div");
+  if (!div) return;
+  const clone = div.cloneNode(true);
+  const actions = clone.querySelector(".cap-actions");
+  if (actions) actions.remove();
+  CAP_STEP_ORIGINALS[row.dataset.cap] = clone.innerHTML.trim();
+});
+function applyStaticLang(lang) {
+  const dict = staticDict(lang);
+  for (const { el, key, html } of I18N_ORIGINALS) {
+    const preserved = [...el.querySelectorAll(".btn-icon, .nav-check")];
+    const translated = lang === "en" ? html : dict[key];
+    if (typeof translated === "string") el.innerHTML = translated;
+    else if (lang === "en") el.innerHTML = html;
+    for (const node of preserved) {
+      if (node.classList.contains("btn-icon")) el.prepend(node);
+      else el.appendChild(node);
+    }
+  }
+  // Capstone step texts (excluded from static capture; they contain buttons).
+  document.querySelectorAll("[data-cap]").forEach((row) => {
+    const div = row.querySelector(":scope > div");
+    if (!div) return;
+    const html = lang === "en" ? CAP_STEP_ORIGINALS[row.dataset.cap] : (dynDict(lang).cap_steps || {})[row.dataset.cap];
+    if (!html) return;
+    const actions = div.querySelector(".cap-actions");
+    div.innerHTML = html;
+    if (actions) div.appendChild(actions);
+  });
+  DYN_BTN_TARGETS.forEach(([sel, uiKey]) => {
+    const btn = document.querySelector(sel);
+    if (!btn) return;
+    const ui = dynDict(lang).ui || {};
+    const text = lang === "en" ? DYN_BTN_ORIGINALS.get(sel) : ui[uiKey];
+    if (text) setButtonText(btn, text);
+  });
+  document.documentElement.lang = lang;
+  const dyn = dynDict(lang);
+  if (dyn.title) document.title = dyn.title;
+  const langLabel = document.getElementById("langLabel");
+  if (langLabel && dyn.ui && dyn.ui.language_label) langLabel.textContent = dyn.ui.language_label;
+  // Sample texts in inputs (only while the learner has not edited them).
+  const defaults = dyn.input_defaults || {};
+  for (const id of ["tokenInput", "ctxInput", "promptInput"]) {
+    const input = document.getElementById(id);
+    if (input && !input.dataset.userEdited && defaults[id]) input.value = defaults[id];
+  }
+  const parseInput = document.getElementById("parseInput");
+  if (parseInput && defaults.parsePlaceholder) parseInput.placeholder = defaults.parsePlaceholder;
+}
+["tokenInput", "ctxInput", "promptInput"].forEach((id) => {
+  const input = document.getElementById(id);
+  if (input) input.addEventListener("input", () => { input.dataset.userEdited = "1"; });
+});
+function relocalizeDynamic() {
+  if (typeof renderProgress === "function") renderProgress();
+  if (typeof renderTrapScore === "function") renderTrapScore();
+  if (typeof renderCapstone === "function") renderCapstone();
+  if (typeof renderSoundBtn === "function") renderSoundBtn();
+  if (typeof relocalizeQuiz === "function") relocalizeQuiz();
+  if (typeof setScaleMetric === "function" && typeof currentScaleKey === "string") setScaleMetric(currentScaleKey);
+  if (typeof renderPipe === "function" && typeof currentPipeIdx === "number") renderPipe(currentPipeIdx);
+  if (typeof renderAssistantScenario === "function") renderAssistantScenario();
+  try {
+    if (typeof parseData !== "undefined" && typeof PARSE_PRESETS !== "undefined") {
+      const presetIdx = PARSE_PRESETS.findIndex((p) => p.words === parseData.words);
+      if (presetIdx >= 0) parseData = getParsePreset(presetIdx);
+    }
+  } catch (e) { /* custom parse keeps its text */ }
+  if (typeof renderParse === "function") renderParse();
+}
+const langSelect = document.getElementById("langSelect");
+function setLang(lang, save) {
+  if (!["en", "es", "fr"].includes(lang)) lang = "en";
+  currentLang = lang;
+  if (langSelect) langSelect.value = lang;
+  if (save) { try { localStorage.setItem("llmLabLang", lang); } catch (e) { /* private mode */ } }
+  applyStaticLang(lang);
+  relocalizeDynamic();
+}
+if (langSelect) langSelect.addEventListener("change", () => setLang(langSelect.value, true));
+if (currentLang !== "en") applyStaticLang(currentLang);
+
 document.addEventListener("click", (e) => {
   if (e.target.closest("button") && e.target.id !== "soundBtn") sndClick();
 });
@@ -1270,14 +1457,16 @@ const SCALE_METRICS = {
 };
 let scaleTargetSide = 0.55 * Math.cbrt(250 / 1.23);
 let scaleSet3D = null;
+let currentScaleKey = "params";
 function setScaleMetric(key) {
   const m = SCALE_METRICS[key];
   if (!m) return;
+  currentScaleKey = key;
   document.querySelectorAll(".scale-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.metric === key));
   const ratio = m.big / m.small;
   scaleTargetSide = 0.55 * Math.cbrt(ratio);
-  document.getElementById("scaleNote").textContent = m.note;
+  document.getElementById("scaleNote").textContent = (dynDict(currentLang).scale_notes || {})[key] || m.note;
   if (scaleSet3D) {
     scaleSet3D(m.smallLabel, m.bigLabel,
       Math.max(1, Math.round(Math.cbrt(ratio))),
@@ -1737,17 +1926,18 @@ function renderTrapScore() {
     const status = row.querySelector(".trap-status");
     status.className = "trap-status" +
       (st.result === "fall" ? " fell" : st.result === "survive" ? " survived" : "");
+    const ts = dynDict(currentLang).trap_status || {};
     status.textContent =
-      st.result === "fall" ? "Model fell for it" + (st.pred ? (st.pred === "fall" ? " — you called it ✓" : " — you didn't see it coming") : "") :
-      st.result === "survive" ? "Model got it right" + (st.pred ? (st.pred === "survive" ? " — you called it ✓" : " — tougher than you thought") : "") :
-      st.pred ? "Prediction locked in — now run it" : "Not run yet";
+      st.result === "fall" ? (ts.fell || "Model fell for it") + (st.pred ? (st.pred === "fall" ? (ts.fell_called || " — you called it ✓") : (ts.fell_missed || " — you didn't see it coming")) : "") :
+      st.result === "survive" ? (ts.survived || "Model got it right") + (st.pred ? (st.pred === "survive" ? (ts.survived_called || " — you called it ✓") : (ts.survived_missed || " — tougher than you thought")) : "") :
+      st.pred ? (ts.locked || "Prediction locked in — now run it") : (ts.not_run || "Not run yet");
     if (st.result) {
       judged++;
       if (st.pred && st.pred === st.result) correct++;
     }
   });
   document.getElementById("trapTally").textContent =
-    "Predictions correct: " + correct + " of " + judged + " traps judged.";
+    i18nT("trap_tally", { a: correct, b: judged }) || ("Predictions correct: " + correct + " of " + judged + " traps judged.");
 }
 document.querySelectorAll("[data-trap-row] .trap-pred").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -1919,10 +2109,11 @@ function drawSharpChart(tokenIdx, layer) {
   ctx.beginPath(); ctx.moveTo(cur.x, T); ctx.lineTo(cur.x, H - B); ctx.stroke();
   const first = pts[0], last = pts[15];
   document.getElementById("sharpNote").textContent =
-    "If it had to answer at layer 0, the best guess would be “" + first.tok + "” at " +
+    i18nT("sharp_note", { first: first.tok, fp: Math.round(first.p * 100), last: last.tok, lp: Math.round(last.p * 100) }) ||
+    ("If it had to answer at layer 0, the best guess would be “" + first.tok + "” at " +
     Math.round(first.p * 100) + "%. By layer 15 the leader is “" + last.tok + "” at " +
     Math.round(last.p * 100) + "%. Pink dots are where the leading word changes — " +
-    "early layers are still guessing grammar words; the real answer only takes the lead as context arrives.";
+    "early layers are still guessing grammar words; the real answer only takes the lead as context arrives.");
 }
 
 function renderJourney() {
@@ -2070,10 +2261,27 @@ function parseCustom(text) {
       "<br><em>Rough schematic parse from simple word rules — a real model's version is learned, layered, and never written down.</em>",
   };
 }
+function localizedParseRoles() {
+  const loc = dynDict(currentLang).parse_roles || {};
+  const out = {};
+  for (const [key, [color, label]] of Object.entries(PARSE_ROLES)) out[key] = [color, loc[key] || label];
+  return out;
+}
+function getParsePreset(i) {
+  const base = PARSE_PRESETS[i];
+  const dyn = dynDict(currentLang);
+  if (!base) return base;
+  const summary = (dyn.parse_summaries || [])[i];
+  const linkLabels = (dyn.parse_link_labels || [])[i];
+  if (!summary && !linkLabels) return base;
+  return { ...base, summary: summary || base.summary,
+    links: base.links.map((l, j) => [l[0], l[1], (linkLabels && linkLabels[j]) || l[2]]) };
+}
 function renderParse() {
+  const roles = localizedParseRoles();
   const legend = document.getElementById("parseLegend");
   legend.innerHTML = "";
-  for (const [color, label] of Object.values(PARSE_ROLES)) {
+  for (const [color, label] of Object.values(roles)) {
     const s = document.createElement("span");
     s.className = "parse-legend-chip";
     s.innerHTML = "<span class='parse-swatch'></span>";
@@ -2086,9 +2294,9 @@ function renderParse() {
   parseData.words.forEach((w, i) => {
     const s = document.createElement("span");
     s.className = "attn-token parse-word";
-    s.style.background = PARSE_ROLES[parseData.roles[i]][0];
+    s.style.background = roles[parseData.roles[i]][0];
     s.textContent = w;
-    s.title = PARSE_ROLES[parseData.roles[i]][1];
+    s.title = roles[parseData.roles[i]][1];
     box.appendChild(s);
   });
   const linksEl = document.getElementById("parseLinks");
@@ -2120,7 +2328,7 @@ function renderParse() {
 document.querySelectorAll(".parse-stage-btn").forEach((b) =>
   b.addEventListener("click", () => { parseStage = Number(b.dataset.stage); renderParse(); }));
 document.getElementById("parseSelect").addEventListener("change", (e) => {
-  parseData = PARSE_PRESETS[Number(e.target.value)];
+  parseData = getParsePreset(Number(e.target.value));
   renderParse();
 });
 document.getElementById("parseCustomBtn").addEventListener("click", () => {
@@ -2573,14 +2781,15 @@ try {
 
 function renderProgress() {
   document.getElementById("progressLabel").textContent =
-    "Progress " + completedLessons.size + "/" + LESSON_ORDER.length;
+    i18nT("progress", { a: completedLessons.size, b: LESSON_ORDER.length }) ||
+    ("Progress " + completedLessons.size + "/" + LESSON_ORDER.length);
   document.getElementById("progressFill").style.width =
     (completedLessons.size / LESSON_ORDER.length * 100) + "%";
   document.querySelectorAll(".complete-btn").forEach((btn) => {
     const done = completedLessons.has(btn.dataset.lesson);
     btn.classList.toggle("is-complete", done);
     const label = btn.querySelector(".btn-label");
-    const text = done ? "Completed ✓ — click to undo" : "Mark lesson complete";
+    const text = done ? (i18nT("completed_btn") || "Completed ✓ — click to undo") : (i18nT("complete_btn") || "Mark lesson complete");
     if (label) label.textContent = text; else btn.textContent = text;
   });
   document.querySelectorAll(".lesson-nav a").forEach((a) => {
@@ -2593,7 +2802,7 @@ function renderProgress() {
   document.querySelectorAll(".quiz-group-status").forEach((el) => {
     const done = completedLessons.has(el.dataset.lesson);
     el.classList.toggle("done", done);
-    el.textContent = done ? "Completed ✓" : "Not completed";
+    el.textContent = done ? (i18nT("completed_status") || "Completed ✓") : (i18nT("not_completed") || "Not completed");
   });
 }
 function markComplete(id, silent) {
@@ -2604,8 +2813,9 @@ function markComplete(id, silent) {
   if (!silent) {
     if (completedLessons.size >= LESSON_ORDER.length) sndFanfare(); else sndComplete();
   }
-  if (!silent) showError("Lesson complete: " + LESSON_TITLES[id] + " — " +
-    completedLessons.size + " of " + LESSON_ORDER.length + " done.");
+  if (!silent) showError(i18nT("lesson_complete_toast", { title: lessonTitle(id), a: completedLessons.size, b: LESSON_ORDER.length }) ||
+    ("Lesson complete: " + lessonTitle(id) + " — " +
+    completedLessons.size + " of " + LESSON_ORDER.length + " done."));
 }
 
 const QUIZZES = {
@@ -2614,7 +2824,7 @@ const QUIZZES = {
     { q: "Why do models often fail at counting letters in a word?", opts: ["They are bad at maths", "They see tokens, not letters", "The word is too long"], a: 1, why: "A word may be one token, so its letters were never separate inputs." },
   ],
   embeddings: [
-    { q: "Two words sitting close in embedding space means…", opts: ["They are spelled alike", "They appear in similar sentences", "They are the same length"], a: 1, why: "Closeness = similar usage contexts, learned in training." },
+    { q: "Two words sitting close in embedding space mean…", opts: ["They are spelled alike", "They appear in similar sentences", "They are the same length"], a: 1, why: "Closeness = similar usage contexts, learned in training." },
     { q: "king − man + woman lands near…", opts: ["car", "queen", "apple"], a: 1, why: "Directions in the space carry relationships like royalty and gender." },
   ],
   training: [
@@ -2627,7 +2837,7 @@ const QUIZZES = {
   ],
   probabilities: [
     { q: "Raising the temperature makes the picks…", opts: ["Always correct", "More random and wild", "Faster"], a: 1, why: "Higher T flattens the distribution, so long shots get picked more." },
-    { q: "Sampling means the next token is chosen…", opts: ["Alphabetically", "By rolling a weighted dice over probabilities", "By a human"], a: 1, why: "Softmax gives odds; generation samples from them." },
+    { q: "Sampling means the next token is chosen…", opts: ["Alphabetically", "By rolling a weighted die over probabilities", "By a human"], a: 1, why: "Softmax gives odds; generation samples from them." },
   ],
   journey: [
     { q: "Which layers does a token pass through?", opts: ["Only the ones it needs", "Every layer, in order", "One random layer"], a: 1, why: "All tokens traverse the full stack; attention and MLP rewrite each one per layer." },
@@ -2687,6 +2897,48 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && quizDrawer.classList.contains("open")) setQuizDrawer(false);
 });
 
+function quizItems(id) {
+  const en = QUIZZES[id] || [];
+  const loc = (dynDict(currentLang).quizzes || {})[id];
+  return en.map((item, i) => {
+    const t = Array.isArray(loc) ? loc[i] : null;
+    if (!t) return item;
+    return { q: t[0] || item.q, opts: item.opts.map((o, oi) => (t[1] && t[1][oi]) || o), a: item.a, why: t[2] || item.why };
+  });
+}
+function relocalizeQuiz() {
+  document.querySelectorAll(".quiz-group").forEach((group) => {
+    const id = group.dataset.lesson;
+    if (!id) return;
+    const idx = LESSON_ORDER.indexOf(id);
+    const head = group.querySelector(".quiz-group-head h3");
+    if (head) head.textContent = (idx + 1) + " · " + lessonTitle(id);
+    const intro = group.querySelector(".quiz-status");
+    if (intro) intro.textContent = i18nT("quiz_intro") || "Answer both questions to complete this lesson automatically.";
+    const items = quizItems(id);
+    group.querySelectorAll(".quiz-q").forEach((qEl) => {
+      const qi = Number(qEl.dataset.qi);
+      if (items[qi]) qEl.textContent = (qi + 1) + ". " + items[qi].q;
+    });
+    group.querySelectorAll(".quiz-opt").forEach((btn) => {
+      const qi = Number(btn.dataset.qi), oi = Number(btn.dataset.oi);
+      if (items[qi] && items[qi].opts[oi]) btn.textContent = items[qi].opts[oi];
+    });
+    group.querySelectorAll(".quiz-feedback").forEach((fb) => {
+      if (!fb.dataset.state) return;
+      const qi = Number(fb.dataset.qi);
+      const correct = fb.dataset.state === "correct";
+      if (items[qi]) fb.textContent = ((correct ? i18nT("correct_prefix") : i18nT("wrong_prefix")) || (correct ? "Correct. " : "Not quite. ")) + items[qi].why;
+    });
+  });
+  document.querySelectorAll(".next-btn").forEach((a) => {
+    const nextId = (a.getAttribute("href") || "").slice(1);
+    a.textContent = i18nT("next_lesson", { title: lessonTitle(nextId) }) || ("Next lesson: " + lessonTitle(nextId) + " →");
+  });
+  document.querySelectorAll(".final-note").forEach((el) => {
+    el.textContent = i18nT("final_note") || "Final lesson — complete it to finish the course.";
+  });
+}
 LESSON_ORDER.forEach((id, idx) => {
   const section = document.getElementById(id);
   if (!section) return;
@@ -2694,24 +2946,28 @@ LESSON_ORDER.forEach((id, idx) => {
   const quiz = QUIZZES[id];
   const quizList = document.getElementById("quizList");
   if (quiz && quizList) {
+    const localizedQuiz = quizItems(id);
     const group = document.createElement("div");
     group.className = "quiz-group";
+    group.dataset.lesson = id;
     group.innerHTML = "<div class='quiz-group-head'><h3>" + (idx + 1) + " · " +
-      LESSON_TITLES[id] + "</h3><span class='quiz-group-status' data-lesson='" +
-      id + "'>Not completed</span></div>";
+      lessonTitle(id) + "</h3><span class='quiz-group-status' data-lesson='" +
+      id + "'>" + (i18nT("not_completed") || "Not completed") + "</span></div>";
     const box = document.createElement("div");
     box.className = "quiz";
     box.innerHTML =
-      "<p class='quiz-status'>Answer both questions to complete this lesson automatically.</p>";
+      "<p class='quiz-status'>" + (i18nT("quiz_intro") || "Answer both questions to complete this lesson automatically.") + "</p>";
     let answered = new Set();
-    quiz.forEach((item, qi) => {
+    localizedQuiz.forEach((item, qi) => {
       const qEl = document.createElement("p");
       qEl.className = "quiz-q";
+      qEl.dataset.qi = String(qi);
       qEl.textContent = (qi + 1) + ". " + item.q;
       const opts = document.createElement("div");
       opts.className = "quiz-opts";
       const feedback = document.createElement("p");
       feedback.className = "quiz-feedback";
+      feedback.dataset.qi = String(qi);
       // Shuffle option order so the correct answer is not always in the
       // same position; `oi` still refers to the original option index.
       const order = item.opts.map((_, i) => i);
@@ -2723,11 +2979,15 @@ LESSON_ORDER.forEach((id, idx) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "quiz-opt";
+        btn.dataset.qi = String(qi);
+        btn.dataset.oi = String(oi);
         btn.textContent = item.opts[oi];
         btn.addEventListener("click", () => {
           const correct = oi === item.a;
+          const liveItem = quizItems(id)[qi] || item;
           btn.classList.add(correct ? "correct" : "wrong");
-          feedback.textContent = (correct ? "Correct. " : "Not quite. ") + item.why;
+          feedback.dataset.state = correct ? "correct" : "wrong";
+          feedback.textContent = ((correct ? i18nT("correct_prefix") : i18nT("wrong_prefix")) || (correct ? "Correct. " : "Not quite. ")) + liveItem.why;
           if (correct) sndCorrect(); else sndWrong();
           if (correct) {
             answered.add(qi);
@@ -2755,7 +3015,7 @@ LESSON_ORDER.forEach((id, idx) => {
   addIcon(completeBtn, "check");
   const completeLabel = document.createElement("span");
   completeLabel.className = "btn-label";
-  completeLabel.textContent = "Mark lesson complete";
+  completeLabel.textContent = i18nT("complete_btn") || "Mark lesson complete";
   completeBtn.appendChild(completeLabel);
   completeBtn.addEventListener("click", () => {
     if (completedLessons.has(id)) {
@@ -2772,12 +3032,12 @@ LESSON_ORDER.forEach((id, idx) => {
     const nextId = LESSON_ORDER[idx + 1];
     next.className = "next-btn";
     next.href = "#" + nextId;
-    next.textContent = "Next lesson: " + LESSON_TITLES[nextId] + " →";
+    next.textContent = i18nT("next_lesson", { title: lessonTitle(nextId) }) || ("Next lesson: " + lessonTitle(nextId) + " →");
     footer.appendChild(next);
   } else {
     const done = document.createElement("span");
-    done.className = "quiz-status";
-    done.textContent = "Final lesson — complete it to finish the course.";
+    done.className = "quiz-status final-note";
+    done.textContent = i18nT("final_note") || "Final lesson — complete it to finish the course.";
     footer.appendChild(done);
   }
   section.appendChild(footer);
@@ -3236,7 +3496,7 @@ initEmbeddings();
 
 /* ---------- Lesson 13: from predictor to assistant ---------- */
 const PIPE_DETAILS = [
-  "<strong>Stage 1 — Pre-training.</strong> The machine from lessons 1–6: predict the next token over trillions of tokens (lesson 12's towers). It absorbs facts, grammar, styles — and every bad habit in the data. Asked a question, it predicts what question-shaped text is usually followed by: often, more questions. It has no concept of “answering you”; there is not yet a “you”.",
+  "<strong>Stage 1 — Pre-training.</strong> The machine from lessons 1–6: predict the next token over trillions of tokens. It absorbs facts, grammar, styles — and every bad habit in the data. Asked a question, it predicts what question-shaped text is usually followed by: often, more questions. It has no concept of “answering you”; there is not yet a “you”.",
   "<strong>Stage 2 — Instruction tuning (SFT).</strong> Train further on demonstration pairs: an instruction, then a good response. Same gradient descent, tiny data, huge behavioural effect: answer-shaped text now follows question-shaped input, formats are obeyed, and the model emits a stop token when done instead of rambling on. This is where “assistant” as a role is born.",
   "<strong>Stage 3 — Preference training.</strong> Sample several answers, have humans (or a trained reward model) rank them, and push the policy toward the winners: helpful over evasive, honest over confident-sounding, safe over harmful. This is where refusals, tone, and “show your working” come from — tastes, trained in, layered on top of ability.",
 ];
@@ -3257,15 +3517,18 @@ const ASSISTANT_SCENARIOS = [
     note: "The refusal is not knowledge the base model lacks — it's stage 3. Preference training made “don't help with wrongdoing, offer the legitimate alternative” the high-probability continuation. (This is a stylised reconstruction; real refusals vary.)",
   },
 ];
+let currentPipeIdx = 0;
 function renderPipe(idx) {
-  document.getElementById("pipeDetail").innerHTML = PIPE_DETAILS[idx];
+  currentPipeIdx = idx;
+  document.getElementById("pipeDetail").innerHTML = (dynDict(currentLang).pipe_details || [])[idx] || PIPE_DETAILS[idx];
   document.querySelectorAll(".pipe-step").forEach((b) =>
     b.classList.toggle("active", Number(b.dataset.pipe) === idx));
 }
 document.querySelectorAll(".pipe-step").forEach((b) =>
   b.addEventListener("click", () => renderPipe(Number(b.dataset.pipe))));
 function renderAssistantScenario() {
-  const s = ASSISTANT_SCENARIOS[Number(document.getElementById("assistantPrompt").value)];
+  const scenarioIdx = Number(document.getElementById("assistantPrompt").value);
+  const s = (dynDict(currentLang).assistant_scenarios || [])[scenarioIdx] || ASSISTANT_SCENARIOS[scenarioIdx];
   document.getElementById("baseOut").textContent = s.base;
   document.getElementById("assistantOut").textContent = s.asst;
   document.getElementById("assistantNote").textContent = s.note;
@@ -3301,15 +3564,17 @@ function ragCosine(a, b) {
   vb.forEach((v) => { nb += v * v; });
   return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
 }
+function ragDocs() { return dynDict(currentLang).rag_docs || RAG_DOCS; }
+function ragAnswers() { return dynDict(currentLang).rag_answers || RAG_ANSWERS; }
 function renderRagAnswer() {
   const qi = Number(document.getElementById("ragQuery").value);
   document.getElementById("ragAnswer").textContent =
-    "With the evidence pasted in, the model can answer from the top chunk: " + RAG_ANSWERS[qi];
+    (i18nT("rag_answer_prefix") || "With the evidence pasted in, the model can answer from the top chunk: ") + ragAnswers()[qi];
 }
 document.getElementById("ragSearchBtn").addEventListener("click", () => {
   const q = document.getElementById("ragQuery");
   const queryWords = ragWords(q.options[q.selectedIndex].text);
-  const scored = RAG_DOCS.map((doc, i) => ({ i, doc, score: ragCosine(queryWords, ragWords(doc)) }))
+  const scored = ragDocs().map((doc, i) => ({ i, doc, score: ragCosine(queryWords, ragWords(doc)) }))
     .sort((a, b) => b.score - a.score);
   ragTop = scored.slice(0, 2);
   const box = document.getElementById("ragResults");
@@ -3330,7 +3595,7 @@ document.getElementById("ragSearchBtn").addEventListener("click", () => {
   document.getElementById("ragBuildBtn").disabled = false;
   document.getElementById("ragPrompt").hidden = true;
   document.getElementById("ragAnswer").textContent =
-    "Top 2 chunks selected (highlighted). Now build the prompt the model would actually receive.";
+    i18nT("rag_top_msg") || "Top 2 chunks selected (highlighted). Now build the prompt the model would actually receive.";
 });
 document.getElementById("ragBuildBtn").addEventListener("click", () => {
   if (!ragTop.length) return;
@@ -3339,9 +3604,9 @@ document.getElementById("ragBuildBtn").addEventListener("click", () => {
   const box = document.getElementById("ragPrompt");
   box.hidden = false;
   box.textContent =
-    "Answer using only the evidence below. If it isn't there, say so.\n\n" +
+    (i18nT("rag_prompt_intro") || "Answer using only the evidence below. If it isn't there, say so.") + "\n\n" +
     ragTop.map((r, i) => "[chunk " + (r.i + 1) + "] " + r.doc).join("\n\n") +
-    "\n\nQuestion: " + question;
+    "\n\n" + (i18nT("rag_question_label") || "Question: ") + question;
   renderRagAnswer();
 });
 
@@ -3380,8 +3645,8 @@ function renderCapstone() {
   document.querySelectorAll(".cap-pred").forEach((b) =>
     b.classList.toggle("active", !!(trapState.letters && trapState.letters.pred === b.dataset.capPred)));
   document.getElementById("capTally").textContent =
-    "Capstone: " + n + " of 5 steps done." +
-    (n === 5 ? " All five — you've run the full loop: predict, parse, generate, inspect, debug." : "");
+    (i18nT("cap_tally", { a: n }) || ("Capstone: " + n + " of 5 steps done.")) +
+    (n === 5 ? (i18nT("cap_tally_all") || " All five — you've run the full loop: predict, parse, generate, inspect, debug.") : "");
 }
 function capstoneLatchSilent(key) {
   if (!capstoneState[key]) {

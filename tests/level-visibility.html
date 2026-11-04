@@ -267,6 +267,33 @@ document.getElementById("f").addEventListener("load", async () => {
   check("scaling: 3D canvas has non-zero size after showing lesson",
     !!scaleCv && scaleCv.width > 0 && scaleCv.height > 0);
 
+  // Language selector: Spanish and French translate the course, English restores it.
+  const langSel = doc.getElementById("langSelect");
+  check("language selector exists with en/es/fr",
+    !!langSel && ["en", "es", "fr"].every((v) => [...langSel.options].some((o) => o.value === v)));
+  const introH2 = doc.querySelector("#intro h2");
+  const enIntro = introH2.textContent;
+  langSel.value = "es";
+  langSel.dispatchEvent(new win.Event("change"));
+  check("spanish: intro heading and document lang switch",
+    introH2.textContent.includes("Introducción") && doc.documentElement.lang === "es" &&
+    win.localStorage.getItem("llmLabLang") === "es");
+  check("spanish: lesson body and quiz question translate",
+    doc.querySelector("#training > p").textContent.includes("modelo") &&
+    doc.querySelector("#quizList .quiz-q").textContent.length > 5 &&
+    !doc.querySelector("#quizList .quiz-q").textContent.includes("What does the model actually read?"));
+  check("spanish: sound button label translates",
+    doc.getElementById("soundBtn").textContent.includes("Sonido"));
+  langSel.value = "fr";
+  langSel.dispatchEvent(new win.Event("change"));
+  check("french: intro heading and sound label switch",
+    introH2.textContent.includes("Introduction") && doc.documentElement.lang === "fr" &&
+    doc.getElementById("soundBtn").textContent.toLowerCase().includes("son"));
+  langSel.value = "en";
+  langSel.dispatchEvent(new win.Event("change"));
+  check("english: original heading is restored",
+    introH2.textContent === enIntro && doc.documentElement.lang === "en");
+
   document.getElementById("out").textContent =
     (failures ? "FAIL (" + failures + ")\n" : "PASS\n") + lines.join("\n");
   document.title = failures ? "FAIL" : "PASS";

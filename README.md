@@ -1,5 +1,9 @@
 # LLM Visual Lab
 
+**Live demo: https://omega4k.github.io/llm_visual_lab/** — the full course runs
+in your browser. Lessons 11 and 15 additionally use a local model if you have
+Ollama installed (see “Local model setup” below); everything else works as-is.
+
 A local, interactive learning tool that shows how AI / LLMs work:
 tokens, embeddings, attention, and next-token prediction — with a small
 local Llama model for live examples. Nothing leaves your machine.
